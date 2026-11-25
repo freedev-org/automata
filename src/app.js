@@ -1172,7 +1172,7 @@ return nextState;`;
 
   function showImportDialog(project) {
     els.importTitle.textContent = project.name;
-    els.importDescription.textContent = 'Você recebeu uma máquina Automata. Confira os dados e salve uma cópia na sua biblioteca.';
+    els.importDescription.textContent = 'Você recebeu uma máquina do Automata Playground. Confira os dados e salve uma cópia na sua biblioteca.';
     const parsed = safeParseMachine(project.machineJson);
     const states = parsed.ok ? parsed.value.states.length : 0;
     const alphabet = parsed.ok ? parsed.value.alphabet.length : 0;
@@ -1202,7 +1202,7 @@ return nextState;`;
   const VARIABLE_DOCUMENTATION = {
     operation: {
       title: 'operation — símbolo atual',
-      intro: 'É o símbolo da entrada que a máquina está processando nesta chamada da regra. A cada passo, o Automata entrega exatamente um elemento da sequência de entrada.',
+      intro: 'É o símbolo da entrada que a máquina está processando nesta chamada da regra. A cada passo, o Automata Playground entrega exatamente um elemento da sequência de entrada.',
       sections: [
         ['Tipo e valor', 'O valor mantém o tipo definido no alfabeto: normalmente string, mas também pode ser número, booleano ou objeto. Símbolos numéricos devem ser escritos entre aspas no YAML quando representarem caracteres, por exemplo "0" e "1".'],
         ['Como usar', 'Compare o símbolo com os valores do seu alfabeto ou use-o para consultar a tabela de transições. Para símbolos compostos, a entrada pode ser informada como uma lista JSON, por exemplo ["push", "pop"].']
@@ -1211,10 +1211,10 @@ return nextState;`;
     },
     machine: {
       title: 'machine — objeto mutável da máquina',
-      intro: 'Contém todo o estado atual da máquina. O Automata entrega uma cópia isolada desse objeto à regra em cada passo. Você pode ler e modificar propriedades livremente; as alterações são incluídas no snapshot do próximo passo.',
+      intro: 'Contém todo o estado atual da máquina. O Automata Playground entrega uma cópia isolada desse objeto à regra em cada passo. Você pode ler e modificar propriedades livremente; as alterações são incluídas no snapshot do próximo passo.',
       sections: [
         ['Campos convencionais', '<code>state</code>: estado atual; começa no estado inicial e é substituído pelo retorno da regra. <code>states</code>: lista de estados válidos (strings, números ou objetos com <code>id</code>). <code>alphabet</code>: lista de símbolos permitidos na entrada. <code>acceptingStates</code>: lista opcional de estados de aceitação, usada pelo simulador para indicar aceitação. <code>transitions</code>: mapa opcional de estado → símbolo → próximo estado, se quiser usar uma tabela convencional.'],
-        ['Campos personalizados', 'Adicione qualquer dado que sua máquina precisar: <code>stack</code>, <code>tape</code>, <code>head</code>, <code>memory</code>, contadores, registradores, pilhas auxiliares ou objetos aninhados. O Automata não impõe um esquema fixo a esses campos.'],
+        ['Campos personalizados', 'Adicione qualquer dado que sua máquina precisar: <code>stack</code>, <code>tape</code>, <code>head</code>, <code>memory</code>, contadores, registradores, pilhas auxiliares ou objetos aninhados. O Automata Playground não impõe um esquema fixo a esses campos.'],
         ['Retorno da regra', 'O valor retornado pela regra passa a ser <code>machine.state</code>. Ele precisa corresponder a um item de <code>machine.states</code>, comparado pelo <code>id</code> quando o estado for um objeto. Retornar <code>null</code> encerra a execução imediatamente. Retornar <code>undefined</code> é erro.']
       ],
       example: 'machine.stack.push(operation);\nmachine.head += 1;\n\nreturn machine.transitions[machine.state][operation];'
@@ -1251,16 +1251,34 @@ return nextState;`;
       section.append(title, paragraph);
       els.variableDocContent.appendChild(section);
     });
+    let exampleEditorHost = null;
     if (doc.example) {
       const label = document.createElement('h3');
       label.className = 'variable-doc-example-title';
       label.textContent = 'Exemplo';
-      const pre = document.createElement('pre');
-      pre.className = 'help-code';
-      pre.textContent = doc.example.replace(/\\n/g, '\n');
-      els.variableDocContent.append(label, pre);
+      const example = document.createElement('div');
+      example.className = 'variable-doc-example';
+      exampleEditorHost = document.createElement('div');
+      exampleEditorHost.className = 'variable-doc-code';
+      example.appendChild(exampleEditorHost);
+      els.variableDocContent.append(label, example);
     }
     openDialog(els.variableDocsDialog);
+    if (exampleEditorHost && window.CodeMirror) {
+      const exampleEditor = CodeMirror(exampleEditorHost, {
+        value: doc.example,
+        mode: 'javascript',
+        theme: 'automata',
+        readOnly: 'nocursor',
+        lineNumbers: true,
+        lineWrapping: true,
+        tabSize: 2,
+        viewportMargin: Infinity,
+        gutters: ['CodeMirror-linenumbers']
+      });
+      exampleEditor.setSize(null, 'auto');
+      requestAnimationFrame(() => exampleEditor.refresh());
+    }
   }
 
   function openDialog(dialog) {

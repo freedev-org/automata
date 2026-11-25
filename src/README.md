@@ -1,4 +1,4 @@
-# Automata
+# Automata Playground
 
 Ferramenta web estática para modelar, simular e compartilhar máquinas de teoria dos autômatos.
 
@@ -95,10 +95,10 @@ A análise de JavaScript usa Acorn: valida sintaxe e verifica a presença de um 
 
 - [CodeMirror 5](https://codemirror.net/5/) — editor e modos JavaScript/YAML, com addons de edição. Licença MIT.
 - [Acorn 8.15.0](https://github.com/acornjs/acorn) — parser JavaScript usado para validar a sintaxe e inspecionar o retorno da regra. Licença MIT.
-- `machine-format.js` — parser e serializador YAML subset do Automata, sem dependências externas.
+- `machine-format.js` — parser e serializador YAML subset do Automata Playground, sem dependências externas.
 
-Os arquivos de execução estão em `vendor/` e no diretório raiz. Não é necessário acessar os endereços dos projetos para usar o Automata; os links acima são apenas créditos/documentação.
+Os arquivos de execução estão em `vendor/` e no diretório raiz. Não é necessário acessar os endereços dos projetos para usar o Automata Playground; os links acima são apenas créditos/documentação.
 
 ## Compartilhamento
 
-O link inclui uma representação gzip + Base64URL do projeto no fragmento da URL. Se a API de compressão não estiver disponível no navegador, o Automata usa Base64URL sem compressão. O link aponta para a instalação publicada do Automata; para projetos grandes, prefira exportar o arquivo `.automata.json`.
+O link inclui uma representação gzip + Base64URL do projeto no fragmento da URL. Se a API de compressão não estiver disponível no navegador, o Automata Playground usa Base64URL sem compressão. O link aponta para a instalação publicada do Automata Playground; para projetos grandes, prefira exportar o arquivo `.automata.json`.

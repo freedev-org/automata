@@ -148,3 +148,57 @@
 .variable-doc-section code{white-space:nowrap}
 .variable-doc-content .help-code{margin:2px 0 0}
 @media(max-width:650px){.variable-doc-content{padding:16px}.variable-doc-intro{font-size:11px}.variable-doc-section p{font-size:10px}.editor-footer .variable-doc-link{font-size:7px}}
+
+/* Dialogs: keep the dialog shell fixed; only its content region may scroll. */
+.app-dialog{overflow:hidden;max-height:min(92dvh,900px)}
+.app-dialog[open]{display:flex;flex-direction:column}
+.app-dialog>.dialog-head,.app-dialog>.dialog-foot{flex:0 0 auto}
+.app-dialog>.dialog-body{flex:1 1 auto;min-height:0;max-height:none;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain}
+.variable-doc-dialog{width:min(620px,calc(100% - 32px));max-height:min(92dvh,900px)}
+.variable-doc-dialog>.dialog-body{padding:20px 24px 22px}
+.variable-doc-content{gap:12px}
+.variable-doc-intro{font-size:12px;line-height:1.7;color:#c0cad8;margin:0 0 2px}
+.variable-doc-section{padding-top:11px}
+.variable-doc-section h3,.variable-doc-example-title{font-size:11px;margin:0 0 6px}
+.variable-doc-section p{font-size:11px;line-height:1.7}
+.variable-doc-example{overflow:hidden;border:1px solid #303d50;border-radius:8px;background:#121923}
+.variable-doc-example .CodeMirror{height:auto;min-height:0;padding:7px 0;font:11px/1.65 var(--mono);background:#121923}
+.variable-doc-example .CodeMirror-scroll{height:auto!important;min-height:0!important;overflow:hidden!important}
+.variable-doc-example .CodeMirror-sizer{min-height:0!important}
+.variable-doc-example .CodeMirror-lines{padding:2px 0}
+.variable-doc-example .CodeMirror-gutters{background:#141c27;border-right:1px solid #263142}
+.variable-doc-example .CodeMirror-linenumber{padding:0 9px 0 5px;font-size:9px}
+.variable-doc-example pre.CodeMirror-line,.variable-doc-example pre.CodeMirror-line-like{padding:0 12px}
+@media(max-width:650px){
+  .variable-doc-dialog{width:calc(100% - 20px);max-height:94dvh}
+  .variable-doc-dialog>.dialog-body{padding:15px 14px 17px}
+  .variable-doc-example .CodeMirror{font-size:10px}
+}
+
+/* Dialogs: keep the dialog shell fixed; only its content region may scroll. */
+.app-dialog{overflow:hidden;max-height:min(92dvh,900px)}
+.app-dialog[open]{display:flex;flex-direction:column}
+.app-dialog>.dialog-head,.app-dialog>.dialog-foot{flex:0 0 auto}
+.app-dialog>.dialog-body{flex:1 1 auto;min-height:0;max-height:none;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain}
+.variable-doc-dialog{width:min(620px,calc(100% - 32px));max-height:min(92dvh,900px)}
+.variable-doc-dialog>.dialog-body{padding:20px 24px 22px}
+.variable-doc-content{gap:12px}
+.variable-doc-intro{font-size:12px;line-height:1.7;color:#c0cad8;margin:0 0 2px}
+.variable-doc-section{padding-top:11px}
+.variable-doc-section h3,.variable-doc-example-title{font-size:11px;margin:0 0 6px}
+.variable-doc-section p{font-size:11px;line-height:1.7}
+.variable-doc-example{overflow:hidden;border:1px solid #303d50;border-radius:8px;background:#121923}
+.variable-doc-example .CodeMirror{height:auto;min-height:0;padding:7px 0;font:11px/1.65 var(--mono);background:#121923}
+.variable-doc-example .CodeMirror-scroll{height:auto!important;min-height:0!important;overflow:hidden!important}
+.variable-doc-example .CodeMirror-sizer{min-height:0!important}
+.variable-doc-example .CodeMirror-lines{padding:2px 0}
+.variable-doc-example .CodeMirror-gutters{background:#141c27;border-right:1px solid #263142}
+.variable-doc-example .CodeMirror-linenumber{padding:0 9px 0 5px;font-size:9px}
+.variable-doc-example pre.CodeMirror-line,.variable-doc-example pre.CodeMirror-line-like{padding:0 12px}
+@media(max-width:650px){
+  .variable-doc-dialog{width:calc(100% - 20px);max-height:94dvh}
+  .variable-doc-dialog>.dialog-body{padding:15px 14px 17px}
+  .variable-doc-example .CodeMirror{font-size:10px}
+}
+.variable-doc-example{flex:0 0 auto}
+.variable-doc-example .CodeMirror-scroll{margin:0!important;padding:0!important}

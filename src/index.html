@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#10131b">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; worker-src blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:;">
-  <title>Automata — laboratório de autômatos</title>
+  <title>Automata Playground — laboratório de teoria dos autômatos</title>
   <link rel="stylesheet" href="vendor/codemirror/codemirror.css">
   <link rel="stylesheet" href="vendor/codemirror/addon/fold/foldgutter.css">
   <link rel="stylesheet" href="styles.css">
@@ -15,7 +15,7 @@
     <aside class="sidebar" id="sidebar">
       <div class="brand-row">
         <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
-        <div class="brand-copy"><strong>Automata</strong><small>laboratório de autômatos</small></div>
+        <div class="brand-copy"><strong>Automata Playground</strong><small>playground de teoria dos autômatos</small></div>
         <button class="icon-button sidebar-close" id="closeSidebar" aria-label="Fechar biblioteca" title="Fechar">×</button>
       </div>
 
@@ -123,7 +123,7 @@
             <div class="diagnostics" id="ruleDiagnostics" aria-live="polite"><span class="diagnostic-ok">✓ Sintaxe válida</span></div>
           </section>
         </section>
-        <footer class="page-footer"><span>Automata <span class="footer-version">v1.2</span></span><span>Feito para experimentar. Sem backend, sem limites artificiais.</span></footer>
+        <footer class="page-footer"><span>Automata Playground <span class="footer-version">v1.3</span></span><span>Feito para experimentar. Sem backend, sem limites artificiais.</span></footer>
       </div>
     </main>
   </div>
@@ -133,7 +133,7 @@
   <dialog class="app-dialog" id="helpDialog">
     <div class="dialog-head"><div><div class="section-kicker">GUIA RÁPIDO</div><h2>Como criar uma máquina</h2></div><button class="icon-button dialog-close" data-close="helpDialog" aria-label="Fechar">×</button></div>
     <div class="dialog-body help-content">
-      <p>O Automata separa a definição da máquina da regra que a faz funcionar. A definição usa YAML, um formato compacto e legível; projetos antigos em JSON continuam compatíveis e são convertidos quando abertos. Você pode modelar um autômato finito, uma pilha, uma fita de Turing ou qualquer outra estrutura que consiga expressar em JavaScript.</p>
+      <p>O Automata Playground separa a definição da máquina da regra que a faz funcionar. A definição usa YAML, um formato compacto e legível; projetos antigos em JSON continuam compatíveis e são convertidos quando abertos. Você pode modelar um autômato finito, uma pilha, uma fita de Turing ou qualquer outra estrutura que consiga expressar em JavaScript.</p>
       <div class="help-step"><span>1</span><div><strong>Defina o objeto</strong><p>Edite <code>machine.yaml</code>. O modelo básico usa <code>state</code>, <code>states</code> e <code>alphabet</code>. Acrescente os dados que sua máquina precisar, como <code>stack</code>, <code>tape</code>, <code>head</code> ou <code>memory</code>.</p></div></div>
       <pre class="help-code">state: q0
 states: [q0, q1]
@@ -157,7 +157,7 @@ return next;</pre>
     <div class="dialog-foot"><button class="button button-primary" data-close="helpDialog">Entendi</button></div>
   </dialog>
 
-  <dialog class="app-dialog narrow-dialog" id="variableDocsDialog">
+  <dialog class="app-dialog variable-doc-dialog" id="variableDocsDialog">
     <div class="dialog-head"><div><div class="section-kicker">DOCUMENTAÇÃO DA REGRA</div><h2 id="variableDocTitle">Variável</h2></div><button class="icon-button dialog-close" data-close="variableDocsDialog" aria-label="Fechar">×</button></div>
     <div class="dialog-body variable-doc-content" id="variableDocContent"></div>
     <div class="dialog-foot"><button class="button button-primary" data-close="variableDocsDialog">Fechar</button></div>
