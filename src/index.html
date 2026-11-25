@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10131b">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; worker-src blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:;">
+  <title>Automata — laboratório de autômatos</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand-row">
+        <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div class="brand-copy"><strong>Automata</strong><small>laboratório de autômatos</small></div>
+        <button class="icon-button sidebar-close" id="closeSidebar" aria-label="Fechar biblioteca" title="Fechar">×</button>
+      </div>
+
+      <button class="new-machine-button" id="newMachineButton"><span class="plus">＋</span><span>Nova máquina</span><kbd>⌘ K</kbd></button>
+
+      <div class="sidebar-label-row"><span class="eyebrow">MINHAS MÁQUINAS</span><span class="count-pill" id="machineCount">0</span></div>
+      <nav class="machine-list" id="machineList" aria-label="Minhas máquinas"></nav>
+
+      <div class="sidebar-bottom">
+        <button class="sidebar-action" id="importButton"><span class="action-icon">↥</span> Importar máquina <span class="shortcut">JSON</span></button>
+        <button class="sidebar-action" id="helpButton"><span class="action-icon">?</span> Ajuda e exemplos</button>
+        <div class="sidebar-footnote"><span class="status-dot"></span> Seus projetos ficam neste navegador</div>
+      </div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="icon-button menu-toggle" id="openSidebar" aria-label="Abrir biblioteca" title="Biblioteca">☰</button>
+          <div class="breadcrumbs"><span>Workspace</span><span class="crumb-slash">/</span><strong id="breadcrumbName">Nova máquina</strong></div>
+        </div>
+        <div class="topbar-actions">
+          <span class="saved-indicator" id="savedIndicator"><span class="save-dot"></span> Salvo localmente</span>
+          <button class="button button-quiet" id="duplicateButton" title="Criar uma cópia desta máquina">Duplicar</button>
+          <button class="button button-secondary" id="exportButton"><span>↓</span> Exportar</button>
+          <button class="button button-primary" id="shareButton"><span>↗</span> Compartilhar</button>
+          <button class="icon-button top-help" id="topHelpButton" title="Ajuda" aria-label="Ajuda">?</button>
+        </div>
+      </header>
+
+      <div class="page-content">
+        <section class="machine-heading">
+          <div class="heading-main">
+            <div class="overline"><span class="overline-icon">◎</span> PROJETO DE AUTÔMATO</div>
+            <input id="machineName" class="machine-name-input" value="Nova máquina" aria-label="Nome da máquina" maxlength="80">
+            <p class="heading-description">Defina a estrutura, programe a regra de transição e observe a máquina em execução.</p>
+          </div>
+          <div class="heading-meta"><span class="meta-chip" id="machineTypeChip">Máquina personalizada</span><span class="meta-updated" id="updatedLabel">Rascunho</span></div>
+        </section>
+
+        <div class="workspace-grid">
+          <section class="editor-column">
+            <div class="section-card machine-object-card">
+              <div class="card-heading">
+                <div><div class="section-kicker">01 / ESTRUTURA</div><h2>Objeto da máquina</h2><p>Estados, alfabeto, estado inicial e dados auxiliares.</p></div>
+                <button class="mini-button" id="formatJsonButton" title="Formatar JSON">↳ Formatar</button>
+              </div>
+              <div class="editor-toolbar"><span class="file-dot json-dot"></span><span>machine.json</span><span class="toolbar-spacer"></span><span class="editor-hint" id="jsonStatus">JSON</span></div>
+              <textarea id="machineEditor" class="code-editor object-editor" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Objeto JSON da máquina"></textarea>
+              <div class="editor-footer"><span>O campo <code>state</code> é o estado atual. <code>null</code> significa parada.</span><span id="stateCount">0 estados</span></div>
+            </div>
+
+            <div class="section-card rule-card">
+              <div class="card-heading">
+                <div><div class="section-kicker">02 / COMPORTAMENTO</div><h2>Regra de execução</h2><p>JavaScript que decide o próximo estado a cada símbolo.</p></div>
+                <span class="language-pill"><span class="js-badge">JS</span> JavaScript</span>
+              </div>
+              <div class="editor-toolbar"><span class="file-dot js-dot"></span><span>transition.js</span><span class="toolbar-spacer"></span><span class="editor-hint">function body</span></div>
+              <textarea id="ruleEditor" class="code-editor rule-editor" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Código JavaScript da regra de execução"></textarea>
+              <div class="editor-footer"><span>Disponíveis: <code>operation</code>, <code>machine</code> e <code>context</code>.</span><button class="text-button" id="ruleHelpButton">Ver assinatura ↗</button></div>
+            </div>
+
+            <div class="section-card input-card">
+              <div class="card-heading compact-heading">
+                <div><div class="section-kicker">03 / ENTRADA</div><h2>Input da máquina</h2><p>Use uma sequência de símbolos do alfabeto.</p></div>
+                <span class="alphabet-label" id="alphabetLabel">Alfabeto: —</span>
+              </div>
+              <div class="input-row"><div class="input-prefix">IN</div><input id="inputEditor" class="input-editor" value="1011" spellcheck="false" aria-label="Input da máquina"><button class="mini-button" id="parseInputButton">Validar input</button></div>
+              <div class="input-help" id="inputStatus">Sequências simples são separadas por símbolo. Para símbolos compostos, use um array JSON, por exemplo: ["push", "pop"].</div>
+            </div>
+          </section>
+
+          <section class="visual-column">
+            <div class="section-card graph-card">
+              <div class="card-heading graph-heading">
+                <div><div class="section-kicker">VISUALIZAÇÃO</div><h2>Diagrama de estados</h2><p>As transições são extraídas do objeto ou observadas na execução.</p></div>
+                <button class="icon-button graph-fit" id="graphResetButton" title="Reorganizar diagrama" aria-label="Reorganizar diagrama">⤢</button>
+              </div>
+              <div class="graph-legend"><span><i class="legend-node initial"></i> Inicial</span><span><i class="legend-node active"></i> Atual</span><span><i class="legend-line"></i> Transição</span></div>
+              <div class="graph-wrap" id="graphWrap">
+                <svg id="stateGraph" class="state-graph" role="img" aria-label="Diagrama dos estados da máquina" viewBox="0 0 680 420" preserveAspectRatio="xMidYMid meet"></svg>
+                <div class="graph-empty" id="graphEmpty" hidden><div class="empty-orbit">◎</div><strong>Nenhum estado para desenhar</strong><span>Adicione estados ao objeto da máquina para montar o diagrama.</span></div>
+              </div>
+              <div class="graph-footer"><span id="graphSummary">—</span><span class="graph-note">Arraste os estados para reorganizar</span></div>
+            </div>
+
+            <div class="section-card execution-card">
+              <div class="card-heading execution-heading">
+                <div><div class="section-kicker">04 / EXECUÇÃO</div><h2>Simulador</h2><p>Acompanhe o processamento símbolo por símbolo.</p></div>
+                <span class="execution-status idle" id="executionStatus"><i></i> Aguardando</span>
+              </div>
+              <div class="run-controls">
+                <button class="button button-primary run-all-button" id="runAllButton"><span>▶</span> Executar tudo</button>
+                <button class="button button-secondary" id="stepButton"><span>▸</span> Próximo passo</button>
+                <button class="icon-button reset-button" id="resetButton" title="Reiniciar execução" aria-label="Reiniciar execução">↺</button>
+              </div>
+              <div class="trace-header"><span>PROCESSAMENTO</span><span id="stepCounter">0 / 0 passos</span></div>
+              <div class="token-track" id="tokenTrack"><span class="track-placeholder">Valide um input para visualizar os símbolos.</span></div>
+              <div class="execution-details">
+                <div class="detail-cell"><span>ESTADO ATUAL</span><strong id="currentState">q0</strong></div>
+                <div class="detail-cell"><span>ÚLTIMA TRANSIÇÃO</span><strong id="lastTransition">—</strong></div>
+                <div class="detail-cell"><span>RESULTADO</span><strong id="runResult" class="result-muted">Não iniciado</strong></div>
+              </div>
+              <div class="log-panel" id="executionLog" aria-live="polite"><div class="log-placeholder"><span class="log-icon">⌁</span> Execute a máquina para ver o histórico de transições.</div></div>
+              <div class="execution-footer"><span class="sandbox-label"><i></i> Regra executada em Web Worker isolado</span><span id="executionTime"> </span></div>
+            </div>
+          </section>
+        </div>
+        <footer class="page-footer"><span>Automata <span class="footer-version">v1.0</span></span><span>Feito para experimentar. Sem backend, sem limites artificiais.</span></footer>
+      </div>
+    </main>
+  </div>
+
+  <div class="mobile-scrim" id="mobileScrim"></div>
+
+  <dialog class="app-dialog" id="helpDialog">
+    <div class="dialog-head"><div><div class="section-kicker">GUIA RÁPIDO</div><h2>Como criar uma máquina</h2></div><button class="icon-button dialog-close" data-close="helpDialog" aria-label="Fechar">×</button></div>
+    <div class="dialog-body help-content">
+      <p>O Automata separa a definição da máquina da regra que a faz funcionar. Você pode modelar um autômato finito, uma pilha, uma fita de Turing ou qualquer outra estrutura que consiga expressar em JavaScript.</p>
+      <div class="help-step"><span>1</span><div><strong>Defina o objeto</strong><p>Edite <code>machine.json</code>. O modelo básico usa <code>state</code>, <code>states</code> e <code>alphabet</code>. Acrescente os dados que sua máquina precisar, como <code>stack</code>, <code>tape</code>, <code>head</code> ou <code>memory</code>.</p></div></div>
+      <pre class="help-code">{
+  "state": "q0",
+  "states": ["q0", "q1"],
+  "alphabet": ["0", "1"],
+  "transitions": { "q0": { "0": "q0", "1": "q1" } }
+}</pre>
+      <div class="help-step"><span>2</span><div><strong>Escreva a regra</strong><p>O código é executado para cada símbolo. Recebe <code>operation</code>, o objeto mutável <code>machine</code> e <code>context</code>. Retorne o identificador do próximo estado. Você pode alterar qualquer outro dado de <code>machine</code> antes de retornar.</p></div></div>
+      <pre class="help-code">const next = machine.transitions[machine.state]?.[operation];
+if (next === undefined) throw new Error("Transição não definida");
+return next;</pre>
+      <p class="help-context-note">O objeto <code>context</code> também oferece <code>step</code>/<code>index</code> (posição do símbolo, começando em 0), <code>input</code> (entrada completa), <code>remaining</code> (símbolos seguintes) e <code>history</code> (snapshots anteriores).</p>
+      <div class="help-step"><span>3</span><div><strong>Informe a entrada</strong><p>Para alfabetos de símbolos de um caractere, digite a sequência diretamente. Para símbolos compostos, use um array JSON, como <code>["push", "pop"]</code>. Todo símbolo precisa pertencer a <code>alphabet</code>.</p></div></div>
+      <div class="help-step"><span>4</span><div><strong>Execute e observe</strong><p>Use <em>Próximo passo</em> para avançar ou <em>Executar tudo</em> para reiniciar e processar a entrada inteira. O estado <code>null</code> encerra a máquina imediatamente.</p></div></div>
+      <div class="help-callout"><strong>Sobre estados e o diagrama</strong><p>Os estados podem ser strings, números ou objetos com uma propriedade <code>id</code>. As transições presentes em <code>machine.transitions</code> são desenhadas automaticamente. Para regras mais complexas, o diagrama também aprende as conexões observadas durante a simulação. Se houver <code>acceptingStates</code>, o simulador informa se o estado final é de aceitação.</p></div>
+      <div class="help-callout"><strong>Compartilhamento</strong><p>O link compartilhável leva uma cópia compactada dos dados no fragmento da URL. A pessoa pode abrir, conferir e salvar a máquina na própria biblioteca. Também é possível exportar e importar um arquivo JSON.</p></div>
+      <div class="help-warning"><span>ⓘ</span><p>Regras são código JavaScript. Elas rodam em um Web Worker separado, sem acesso ao DOM ou ao <code>localStorage</code> da aplicação, e com limite de tempo por execução. Só execute máquinas de fontes em que confia.</p></div>
+    </div>
+    <div class="dialog-foot"><button class="button button-primary" data-close="helpDialog">Entendi</button></div>
+  </dialog>
+
+  <dialog class="app-dialog narrow-dialog" id="shareDialog">
+    <div class="dialog-head"><div><div class="section-kicker">COMPARTILHAR PROJETO</div><h2>Leve sua máquina com você</h2></div><button class="icon-button dialog-close" data-close="shareDialog" aria-label="Fechar">×</button></div>
+    <div class="dialog-body share-content">
+      <div class="share-option"><div class="share-icon">↗</div><div><strong>Link compartilhável</strong><p>Cria um link com uma cópia compactada da máquina. Quem abrir poderá salvar uma cópia na própria biblioteca.</p></div></div>
+      <button class="button button-primary full-button" id="copyShareLinkButton">Gerar e copiar link <span>↗</span></button>
+      <div class="share-feedback" id="shareFeedback" aria-live="polite"></div>
+      <textarea class="share-link-field" id="shareLinkField" rows="3" readonly hidden aria-label="Link compartilhável"></textarea>
+      <div class="share-divider"><span>OU</span></div>
+      <div class="share-option"><div class="share-icon export-icon">↓</div><div><strong>Arquivo JSON</strong><p>Exporta a definição e o código da regra para guardar ou enviar como arquivo.</p></div></div>
+      <button class="button button-secondary full-button" id="shareExportButton">Exportar arquivo .automata.json <span>↓</span></button>
+      <p class="share-footnote">O conteúdo compartilhado inclui o código JavaScript da regra. Revise-o antes de enviar.</p>
+    </div>
+  </dialog>
+
+  <dialog class="app-dialog narrow-dialog" id="importDialog">
+    <div class="dialog-head"><div><div class="section-kicker">MÁQUINA COMPARTILHADA</div><h2 id="importTitle">Uma máquina chegou até você</h2></div><button class="icon-button dialog-close" data-close="importDialog" aria-label="Fechar">×</button></div>
+    <div class="dialog-body import-content"><div class="import-preview-icon">◎</div><p id="importDescription">Confira a definição antes de salvar uma cópia na sua biblioteca.</p><div class="import-meta" id="importMeta"></div><div class="import-actions"><button class="button button-primary" id="saveSharedButton">Salvar nas minhas máquinas</button><button class="button button-secondary" id="openSharedButton">Abrir sem salvar</button></div><p class="share-footnote">O código da regra só será executado quando você iniciar a simulação.</p></div>
+  </dialog>
+
+  <input id="fileInput" type="file" accept=".json,.automata.json,application/json" hidden>
+  <div class="toast-region" id="toastRegion" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>
