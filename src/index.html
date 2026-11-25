@@ -6,6 +6,8 @@
   <meta name="theme-color" content="#10131b">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; worker-src blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:;">
   <title>Automata — laboratório de autômatos</title>
+  <link rel="stylesheet" href="vendor/codemirror/codemirror.css">
+  <link rel="stylesheet" href="vendor/codemirror/addon/fold/foldgutter.css">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -54,75 +56,74 @@
           <div class="heading-meta"><span class="meta-chip" id="machineTypeChip">Máquina personalizada</span><span class="meta-updated" id="updatedLabel">Rascunho</span></div>
         </section>
 
-        <div class="workspace-grid">
-          <section class="editor-column">
-            <div class="section-card machine-object-card">
-              <div class="card-heading">
-                <div><div class="section-kicker">01 / ESTRUTURA</div><h2>Objeto da máquina</h2><p>Estados, alfabeto, estado inicial e dados auxiliares.</p></div>
-                <button class="mini-button" id="formatJsonButton" title="Formatar JSON">↳ Formatar</button>
-              </div>
-              <div class="editor-toolbar"><span class="file-dot json-dot"></span><span>machine.json</span><span class="toolbar-spacer"></span><span class="editor-hint" id="jsonStatus">JSON</span></div>
-              <textarea id="machineEditor" class="code-editor object-editor" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Objeto JSON da máquina"></textarea>
-              <div class="editor-footer"><span>O campo <code>state</code> é o estado atual. <code>null</code> significa parada.</span><span id="stateCount">0 estados</span></div>
+        <section class="workbench-grid" aria-label="Área de trabalho da máquina">
+          <section class="section-card graph-card">
+            <div class="card-heading graph-heading">
+              <div><div class="section-kicker">VISUALIZAÇÃO</div><h2>Diagrama de estados</h2><p>Arraste os estados para ajustar a disposição.</p></div>
+              <button class="icon-button graph-fit" id="graphResetButton" title="Reorganizar diagrama" aria-label="Reorganizar diagrama">⤢</button>
             </div>
-
-            <div class="section-card rule-card">
-              <div class="card-heading">
-                <div><div class="section-kicker">02 / COMPORTAMENTO</div><h2>Regra de execução</h2><p>JavaScript que decide o próximo estado a cada símbolo.</p></div>
-                <span class="language-pill"><span class="js-badge">JS</span> JavaScript</span>
-              </div>
-              <div class="editor-toolbar"><span class="file-dot js-dot"></span><span>transition.js</span><span class="toolbar-spacer"></span><span class="editor-hint">function body</span></div>
-              <textarea id="ruleEditor" class="code-editor rule-editor" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Código JavaScript da regra de execução"></textarea>
-              <div class="editor-footer"><span>Disponíveis: <code>operation</code>, <code>machine</code> e <code>context</code>.</span><button class="text-button" id="ruleHelpButton">Ver assinatura ↗</button></div>
+            <div class="graph-legend"><span><i class="legend-node initial"></i> Inicial</span><span><i class="legend-node active"></i> Atual</span><span><i class="legend-line"></i> Transição</span></div>
+            <div class="graph-wrap" id="graphWrap">
+              <svg id="stateGraph" class="state-graph" role="img" aria-label="Diagrama dos estados da máquina" viewBox="0 0 680 420" preserveAspectRatio="xMidYMid meet"></svg>
+              <div class="graph-empty" id="graphEmpty" hidden><div class="empty-orbit">◎</div><strong>Nenhum estado para desenhar</strong><span>Adicione estados ao objeto da máquina para montar o diagrama.</span></div>
             </div>
-
-            <div class="section-card input-card">
-              <div class="card-heading compact-heading">
-                <div><div class="section-kicker">03 / ENTRADA</div><h2>Input da máquina</h2><p>Use uma sequência de símbolos do alfabeto.</p></div>
-                <span class="alphabet-label" id="alphabetLabel">Alfabeto: —</span>
-              </div>
-              <div class="input-row"><div class="input-prefix">IN</div><input id="inputEditor" class="input-editor" value="1011" spellcheck="false" aria-label="Input da máquina"><button class="mini-button" id="parseInputButton">Validar input</button></div>
-              <div class="input-help" id="inputStatus">Sequências simples são separadas por símbolo. Para símbolos compostos, use um array JSON, por exemplo: ["push", "pop"].</div>
-            </div>
+            <div class="graph-footer"><span id="graphSummary">—</span><span class="graph-note">As transições observadas também aparecem no diagrama</span></div>
           </section>
 
-          <section class="visual-column">
-            <div class="section-card graph-card">
-              <div class="card-heading graph-heading">
-                <div><div class="section-kicker">VISUALIZAÇÃO</div><h2>Diagrama de estados</h2><p>As transições são extraídas do objeto ou observadas na execução.</p></div>
-                <button class="icon-button graph-fit" id="graphResetButton" title="Reorganizar diagrama" aria-label="Reorganizar diagrama">⤢</button>
-              </div>
-              <div class="graph-legend"><span><i class="legend-node initial"></i> Inicial</span><span><i class="legend-node active"></i> Atual</span><span><i class="legend-line"></i> Transição</span></div>
-              <div class="graph-wrap" id="graphWrap">
-                <svg id="stateGraph" class="state-graph" role="img" aria-label="Diagrama dos estados da máquina" viewBox="0 0 680 420" preserveAspectRatio="xMidYMid meet"></svg>
-                <div class="graph-empty" id="graphEmpty" hidden><div class="empty-orbit">◎</div><strong>Nenhum estado para desenhar</strong><span>Adicione estados ao objeto da máquina para montar o diagrama.</span></div>
-              </div>
-              <div class="graph-footer"><span id="graphSummary">—</span><span class="graph-note">Arraste os estados para reorganizar</span></div>
+          <section class="section-card execution-card">
+            <div class="card-heading execution-heading">
+              <div><div class="section-kicker">SIMULAÇÃO</div><h2>Executar máquina</h2></div>
+              <span class="execution-status idle" id="executionStatus"><i></i> Aguardando</span>
             </div>
-
-            <div class="section-card execution-card">
-              <div class="card-heading execution-heading">
-                <div><div class="section-kicker">04 / EXECUÇÃO</div><h2>Simulador</h2><p>Acompanhe o processamento símbolo por símbolo.</p></div>
-                <span class="execution-status idle" id="executionStatus"><i></i> Aguardando</span>
-              </div>
-              <div class="run-controls">
-                <button class="button button-primary run-all-button" id="runAllButton"><span>▶</span> Executar tudo</button>
-                <button class="button button-secondary" id="stepButton"><span>▸</span> Próximo passo</button>
-                <button class="icon-button reset-button" id="resetButton" title="Reiniciar execução" aria-label="Reiniciar execução">↺</button>
-              </div>
-              <div class="trace-header"><span>PROCESSAMENTO</span><span id="stepCounter">0 / 0 passos</span></div>
-              <div class="token-track" id="tokenTrack"><span class="track-placeholder">Valide um input para visualizar os símbolos.</span></div>
-              <div class="execution-details">
-                <div class="detail-cell"><span>ESTADO ATUAL</span><strong id="currentState">q0</strong></div>
-                <div class="detail-cell"><span>ÚLTIMA TRANSIÇÃO</span><strong id="lastTransition">—</strong></div>
-                <div class="detail-cell"><span>RESULTADO</span><strong id="runResult" class="result-muted">Não iniciado</strong></div>
-              </div>
-              <div class="log-panel" id="executionLog" aria-live="polite"><div class="log-placeholder"><span class="log-icon">⌁</span> Execute a máquina para ver o histórico de transições.</div></div>
-              <div class="execution-footer"><span class="sandbox-label"><i></i> Regra executada em Web Worker isolado</span><span id="executionTime"> </span></div>
+            <div class="simulator-input">
+              <label for="inputEditor">Entrada</label>
+              <div class="input-row"><div class="input-prefix">IN</div><input id="inputEditor" class="input-editor" value="1011" spellcheck="false" aria-label="Input da máquina"><button class="mini-button" id="parseInputButton">Validar</button></div>
+              <div class="input-meta"><span class="input-help" id="inputStatus">Use símbolos do alfabeto da máquina.</span><span class="alphabet-label" id="alphabetLabel">Alfabeto: —</span></div>
             </div>
+            <div class="run-controls">
+              <button class="button button-primary run-all-button" id="runAllButton"><span>▶</span> Executar tudo</button>
+              <button class="button button-secondary" id="stepButton"><span>▸</span> Próximo passo</button>
+              <button class="icon-button reset-button" id="resetButton" title="Reiniciar execução" aria-label="Reiniciar execução">↺</button>
+            </div>
+            <div class="trace-header"><span>ENTRADA PROCESSADA</span><span id="stepCounter">0 / 0</span></div>
+            <div class="token-track" id="tokenTrack"><span class="track-placeholder">Valide um input para visualizar os símbolos.</span></div>
+            <div class="execution-details">
+              <div class="detail-cell"><span>ESTADO ATUAL</span><strong id="currentState">q0</strong></div>
+              <div class="detail-cell"><span>ÚLTIMA TRANSIÇÃO</span><strong id="lastTransition">—</strong></div>
+              <div class="detail-cell"><span>RESULTADO</span><strong id="runResult" class="result-muted">Não iniciado</strong></div>
+            </div>
+            <details class="history-details">
+              <summary><span>Histórico de transições</span><span class="history-count" id="historyCount">0 eventos</span></summary>
+              <div class="log-panel" id="executionLog" aria-live="polite"><div class="log-placeholder"><span class="log-icon">⌁</span> Execute a máquina para ver o histórico.</div></div>
+            </details>
+            <div class="execution-footer"><span class="sandbox-label"><i></i> Regra em Web Worker isolado</span><span id="executionTime"></span></div>
           </section>
-        </div>
-        <footer class="page-footer"><span>Automata <span class="footer-version">v1.0</span></span><span>Feito para experimentar. Sem backend, sem limites artificiais.</span></footer>
+        </section>
+
+        <section class="section-card editor-workspace" aria-label="Editores da máquina">
+          <div class="editor-workspace-header">
+            <div class="editor-tabs" role="tablist" aria-label="Arquivos da máquina">
+              <button id="machineEditorTab" class="editor-tab active" type="button" role="tab" aria-selected="true" aria-controls="machineEditorPanel" data-editor-tab="machine"><span class="file-dot json-dot"></span> machine.json <span class="tab-status" id="jsonTabStatus">✓</span></button>
+              <button id="ruleEditorTab" class="editor-tab" type="button" role="tab" aria-selected="false" aria-controls="ruleEditorPanel" data-editor-tab="rule"><span class="file-dot js-dot"></span> transition.js <span class="tab-status" id="ruleTabStatus">✓</span></button>
+            </div>
+            <div class="editor-tools"><span class="editor-status" id="activeEditorStatus">JSON válido</span><button class="mini-button" id="formatJsonButton" title="Formatar JSON">Formatar JSON</button></div>
+          </div>
+
+          <section class="editor-panel active" id="machineEditorPanel" role="tabpanel" aria-labelledby="machineEditorTab">
+            <div class="editor-toolbar"><span id="jsonStatus" hidden></span><span>Objeto da máquina</span><span class="toolbar-spacer"></span><span class="editor-hint">JSON · estrutura e dados</span></div>
+            <textarea id="machineEditor" class="code-editor object-editor" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Objeto JSON da máquina"></textarea>
+            <div class="editor-footer"><span>Defina estados, alfabeto, estado inicial, transições e dados próprios.</span><span id="stateCount">0 estados</span></div>
+            <div class="diagnostics" id="jsonDiagnostics" aria-live="polite"><span class="diagnostic-ok">✓ JSON e estrutura válidos</span></div>
+          </section>
+
+          <section class="editor-panel" id="ruleEditorPanel" role="tabpanel" aria-labelledby="ruleEditorTab" hidden>
+            <div class="editor-toolbar"><span>Regra de execução</span><span class="toolbar-spacer"></span><span class="editor-hint">JavaScript · corpo da função</span></div>
+            <textarea id="ruleEditor" class="code-editor rule-editor" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Código JavaScript da regra de execução"></textarea>
+            <div class="editor-footer"><span>Disponíveis: <code>operation</code>, <code>machine</code> e <code>context</code>.</span><button class="text-button" id="ruleHelpButton">Ver assinatura ↗</button></div>
+            <div class="diagnostics" id="ruleDiagnostics" aria-live="polite"><span class="diagnostic-ok">✓ Sintaxe válida</span></div>
+          </section>
+        </section>
+        <footer class="page-footer"><span>Automata <span class="footer-version">v1.1</span></span><span>Feito para experimentar. Sem backend, sem limites artificiais.</span></footer>
       </div>
     </main>
   </div>
@@ -175,6 +176,16 @@ return next;</pre>
 
   <input id="fileInput" type="file" accept=".json,.automata.json,application/json" hidden>
   <div class="toast-region" id="toastRegion" aria-live="polite"></div>
+  <script src="vendor/codemirror/codemirror.js"></script>
+  <script src="vendor/codemirror/mode/javascript/javascript.js"></script>
+  <script src="vendor/codemirror/addon/edit/closebrackets.js"></script>
+  <script src="vendor/codemirror/addon/comment/comment.js"></script>
+  <script src="vendor/codemirror/addon/edit/matchbrackets.js"></script>
+  <script src="vendor/codemirror/addon/selection/active-line.js"></script>
+  <script src="vendor/codemirror/addon/fold/foldcode.js"></script>
+  <script src="vendor/codemirror/addon/fold/brace-fold.js"></script>
+  <script src="vendor/codemirror/addon/fold/foldgutter.js"></script>
+  <script src="vendor/acorn/acorn.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

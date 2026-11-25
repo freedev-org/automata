@@ -16,3 +16,122 @@
 
 .share-link-field{width:100%;resize:vertical;background:#121722;border:1px solid #344052;border-radius:6px;color:#b9d3ba;padding:9px;font:9px/1.5 var(--mono);margin:2px 0 7px;overflow-wrap:anywhere}.share-link-field[hidden]{display:none}
 .help-context-note{font-size:10px;line-height:1.6;color:#8d9bb0;margin:-8px 0 16px}
+
+/* Focused workbench layout: visualization and simulation stay together. */
+:root{--panel:#171d28;--panel2:#1b2330;--line:#2a3444;--line-soft:#232c3a}
+.page-content{max-width:1740px;padding:22px 26px 16px}
+.machine-heading{margin-bottom:18px;align-items:center}
+.machine-heading .overline{margin-bottom:5px;font-size:8px;letter-spacing:1.25px}
+.machine-name-input{font-size:25px}
+.heading-description{font-size:11px;margin-top:5px;color:#8b96a8}
+.heading-meta{gap:5px}
+.meta-chip{font-size:8px}
+.workbench-grid{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(350px,.88fr);gap:14px;align-items:stretch}
+.workbench-grid>.section-card{min-width:0}
+.section-card{border-radius:9px;box-shadow:0 3px 14px #00000009}
+.graph-card{min-height:440px;display:flex;flex-direction:column}
+.graph-heading{padding:15px 17px 8px}
+.graph-heading h2,.execution-heading h2{font-size:14px;margin:3px 0 0}
+.graph-heading p{font-size:9px}
+.graph-legend{padding:0 17px 8px;gap:14px;font-size:8px;color:#8490a3}
+.graph-wrap{height:320px;min-height:260px;flex:1;background:radial-gradient(ellipse at center,#1b2431 0,#171d28 70%);border-top:1px solid #252f3f;border-bottom:1px solid #252f3f}
+.state-graph{max-height:100%;max-width:100%}
+.graph-footer{padding:8px 14px;font-size:8px}
+.graph-note{color:#69778d}
+.execution-card{min-height:440px;display:flex;flex-direction:column}
+.execution-heading{padding:15px 16px 10px;align-items:center}
+.execution-heading>div{display:flex;flex-direction:column;gap:2px}
+.execution-heading .section-kicker{font-size:8px}
+.execution-status{font-size:8px;padding:5px 8px;border-radius:20px}
+.simulator-input{padding:10px 15px 9px;border-top:1px solid #252e3d;border-bottom:1px solid #252e3d;background:#151b25}
+.simulator-input>label{display:block;font:9px var(--mono);color:#9aa6b8;margin:0 0 7px}
+.input-row{padding:0;gap:7px}
+.input-prefix{font-size:8px;padding:7px 8px}
+.input-editor{height:32px;padding:7px 9px;font-size:10px}
+.input-row .mini-button{padding:7px 9px;font-size:9px}
+.input-meta{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;margin-top:7px;min-height:17px}
+.input-help{padding:0;font-size:8px;line-height:1.45;color:#818da0;min-width:0}
+.alphabet-label{font-size:8px;white-space:normal;text-align:right;padding-top:0;color:#9eacbf;max-width:48%}
+.run-controls{padding:11px 14px;gap:7px}
+.run-controls .button{min-height:34px;padding:8px 10px;font-size:10px}
+.run-all-button{flex:1.1}
+.run-controls .button-secondary{flex:1}
+.reset-button{flex:0 0 34px;width:34px;height:34px}
+.trace-header{padding:2px 15px 6px;font-size:8px}
+.token-track{min-height:54px;padding:7px 14px;gap:5px}
+.token{min-width:24px;height:26px;font-size:9px}
+.track-placeholder{font-size:9px}
+.execution-details{margin-top:2px}
+.detail-cell{padding:9px 10px}
+.detail-cell>span{font-size:7px;margin-bottom:5px}
+.detail-cell strong{font-size:10px}
+.history-details{margin-top:auto;border-top:1px solid #283243}
+.history-details summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:9px 14px;color:#9ba8bb;font-size:9px}
+.history-details summary::-webkit-details-marker{display:none}
+.history-details summary:after{content:'＋';color:#75849b;margin-left:10px;font-size:12px}
+.history-details[open] summary:after{content:'−'}
+.history-count{margin-left:auto;color:#68778d;font:8px var(--mono)}
+.history-details .log-panel{height:105px;border-top:1px solid #252e3d}
+.execution-footer{margin-top:auto;padding:8px 14px;font-size:8px}
+.editor-workspace{margin-top:15px;overflow:hidden}
+.editor-workspace-header{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;padding:0 14px;border-bottom:1px solid #2a3444;background:#191f2b}
+.editor-tabs{display:flex;align-items:stretch;gap:5px;height:48px;min-width:0}
+.editor-tab{position:relative;display:flex;align-items:center;gap:8px;border:0;border-radius:0;background:transparent;padding:0 12px;color:#8f9bae;font:10px var(--mono);white-space:nowrap}
+.editor-tab:hover{color:#dce4ef;background:#1f2735}
+.editor-tab.active{color:#e3eaf4}
+.editor-tab.active:after{content:'';position:absolute;left:10px;right:10px;bottom:0;height:2px;background:#9fcca0;border-radius:2px 2px 0 0}
+.tab-status{font:10px var(--mono);color:#91c793}
+.tab-status.invalid{color:#e6a16d}
+.editor-tools{display:flex;align-items:center;gap:9px}
+.editor-status{font:8px var(--mono);color:#8fbe90}
+.editor-status.has-error{color:#e7a0a2}
+.editor-tools .mini-button{font-size:9px;padding:6px 9px}
+.editor-tools .mini-button[hidden]{display:none}
+.editor-panel[hidden]{display:none!important}
+.editor-toolbar{height:28px;background:#151b25;border-top:0;border-bottom:1px solid #252f3d;padding:0 14px;font-size:8px}
+.code-editor{height:290px;min-height:220px}
+.object-editor,.rule-editor{height:290px;min-height:220px}
+.editor-footer{min-height:32px;padding:7px 13px;font-size:8px}
+.diagnostics{display:flex;flex-direction:column;gap:0;padding:7px 13px;border-top:1px solid #252e3b;background:#151b25;min-height:32px}
+.diagnostic-ok{font:9px var(--mono);color:#8fc092}
+.diagnostic-item{display:flex;align-items:flex-start;gap:7px;padding:4px 0;font-size:9px;line-height:1.5;color:#b8c2d1}
+.diagnostic-item+.diagnostic-item{border-top:1px solid #252e3b}
+.diagnostic-item.error{color:#e9a3a5}
+.diagnostic-item.warning{color:#e2c28a}
+.diagnostic-symbol{width:13px;flex:0 0 13px;font: bold 11px var(--mono);text-align:center}
+.diagnostic-message{flex:1;min-width:0}
+.diagnostic-location{border:0;background:transparent;color:#9caec4;font:8px var(--mono);padding:0 2px;white-space:nowrap}
+.diagnostic-location:hover{color:#dbe8fc;text-decoration:underline}
+/* CodeMirror is bundled with the project: no CDN request is made. */
+.CodeMirror{height:290px;min-height:220px;background:#121923;color:#d9e2ef;font:11px/1.7 var(--mono);tab-size:2}
+.CodeMirror-scroll{min-height:220px}
+.CodeMirror-gutters{background:#141c27;border-right:1px solid #263142}
+.CodeMirror-linenumber{color:#59677d;padding:0 9px 0 5px;font:9px/1.7 var(--mono)}
+.CodeMirror-lines{padding:9px 0}
+.CodeMirror pre.CodeMirror-line,.CodeMirror pre.CodeMirror-line-like{padding:0 12px}
+.CodeMirror-cursor{border-left:1px solid #b5e3ad}
+.CodeMirror-selected{background:#334457!important}
+.cm-s-automata .CodeMirror-activeline-background{background:#1c2735}
+.cm-s-automata .cm-keyword{color:#c5a5ff}
+.cm-s-automata .cm-operator{color:#9ab7d9}
+.cm-s-automata .cm-def{color:#8fc8ef}
+.cm-s-automata .cm-variable{color:#d9e2ef}
+.cm-s-automata .cm-variable-2{color:#a8c5ee}
+.cm-s-automata .cm-property{color:#9fd3c1}
+.cm-s-automata .cm-string{color:#c6d99b}
+.cm-s-automata .cm-string-2{color:#c6d99b}
+.cm-s-automata .cm-number{color:#e5bb83}
+.cm-s-automata .cm-atom{color:#d9a7dc}
+.cm-s-automata .cm-comment{color:#75869b;font-style:italic}
+.cm-s-automata .cm-builtin{color:#e6b78d}
+.cm-s-automata .cm-tag{color:#8fc8ef}
+.cm-s-automata .cm-attribute{color:#c6d99b}
+.cm-s-automata .cm-matchingbracket{color:#fff!important;background:#314a3c;outline:1px solid #77aa83}
+.cm-s-automata .CodeMirror-matchingbracket{color:#fff!important;background:#314a3c;outline:1px solid #77aa83}
+.CodeMirror-foldgutter{width:12px}
+.CodeMirror-foldgutter-open,.CodeMirror-foldgutter-folded{color:#76869b}
+.CodeMirror-focused .CodeMirror-selected{background:#34485d!important}
+@media(max-width:1050px){.page-content{padding-left:18px;padding-right:18px}.workbench-grid{grid-template-columns:minmax(0,1.05fr) minmax(320px,.95fr);gap:10px}.graph-wrap{height:300px}.graph-card,.execution-card{min-height:420px}}
+@media(max-width:900px){.workbench-grid{grid-template-columns:1fr}.graph-card,.execution-card{min-height:0}.graph-wrap{height:340px;flex:none}.execution-card{min-height:390px}.editor-workspace{margin-top:13px}}
+@media(max-width:650px){.page-content{padding:17px 11px 13px}.machine-heading{display:block;margin-bottom:14px}.machine-name-input{font-size:22px;width:min(90vw,500px)}.heading-meta{display:none}.workbench-grid{gap:11px}.graph-wrap{height:275px;min-height:250px}.graph-card{min-height:0}.graph-heading{padding:13px 13px 8px}.graph-legend{padding-left:13px}.graph-footer{padding:7px 11px}.execution-heading{padding:13px 13px 9px}.simulator-input{padding:9px 12px}.run-controls{padding:10px 11px}.trace-header{padding-left:12px;padding-right:12px}.token-track{padding-left:11px;padding-right:11px}.detail-cell{padding:9px 7px}.detail-cell>span{font-size:6px}.detail-cell strong{font-size:9px}.editor-workspace-header{padding:0 7px;gap:5px}.editor-tabs{gap:0}.editor-tab{font-size:9px;padding:0 8px;gap:6px}.editor-tools{gap:5px}.editor-status{display:none}.editor-tools .mini-button{padding:6px 7px;font-size:8px}.CodeMirror,.object-editor,.rule-editor{height:245px;min-height:190px;font-size:10px}.editor-footer{font-size:7px;gap:5px}.diagnostics{padding:6px 9px}.page-footer{padding-top:16px}}
+.tab-status.has-warning{color:#e2c28a}.editor-status.has-warning{color:#d8bd83}

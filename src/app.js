@@ -43,7 +43,10 @@ return nextState;`;
     copyShareLinkButton: $('copyShareLinkButton'), shareExportButton: $('shareExportButton'), shareLinkField: $('shareLinkField'),
     importTitle: $('importTitle'), importDescription: $('importDescription'), importMeta: $('importMeta'),
     saveSharedButton: $('saveSharedButton'), openSharedButton: $('openSharedButton'),
-    fileInput: $('fileInput'), toastRegion: $('toastRegion')
+    fileInput: $('fileInput'), toastRegion: $('toastRegion'),
+    jsonDiagnostics: $('jsonDiagnostics'), ruleDiagnostics: $('ruleDiagnostics'),
+    activeEditorStatus: $('activeEditorStatus'), jsonTabStatus: $('jsonTabStatus'), ruleTabStatus: $('ruleTabStatus'),
+    historyCount: $('historyCount')
   };
 
   let machines = [];
@@ -55,6 +58,279 @@ return nextState;`;
   let saveTimer = null;
   let graphPositions = {};
   let dragState = null;
+  let suppressEditorEvents = false;
+  let activeEditorTab = 'machine';
+  let editorInstances = {};
+  let machineIsValid = true;
+  let ruleIsValid = true;
+
+  function createCodeEditor(textarea, mode) {
+    const cm = CodeMirror.fromTextArea(textarea, {
+      mode,
+      theme: 'automata',
+      lineNumbers: true,
+      lineWrapping: false,
+      tabSize: 2,
+      indentUnit: 2,
+      indentWithTabs: false,
+      autoCloseBrackets: true,
+      matchBrackets: true,
+      styleActiveLine: true,
+      foldGutter: true,
+      gutters: ['CodeMirror-linenumbers', 'CodeMirror-foldgutter'],
+      viewportMargin: 30,
+      inputStyle: 'contenteditable',
+      extraKeys: {
+        'Tab': (editor) => editor.execCommand('indentMore'),
+        'Shift-Tab': (editor) => editor.execCommand('indentLess'),
+        'Ctrl-/': 'toggleComment',
+        'Cmd-/': 'toggleComment'
+      }
+    });
+
+    return {
+      get value() { return cm.getValue(); },
+      set value(value) {
+        const next = String(value ?? '');
+        if (cm.getValue() === next) return;
+        const previous = suppressEditorEvents;
+        suppressEditorEvents = true;
+        cm.setValue(next);
+        suppressEditorEvents = previous;
+      },
+      addEventListener(type, callback) {
+        if (type === 'input') cm.on('change', () => { if (!suppressEditorEvents) callback(); });
+      },
+      focus() { cm.focus(); },
+      refresh() { cm.refresh(); },
+      jumpToLine(line, ch = 0) {
+        const target = Math.max(0, Math.min(cm.lineCount() - 1, line));
+        cm.focus();
+        cm.setCursor({ line: target, ch });
+        cm.scrollIntoView({ line: target, ch }, 100);
+      },
+      instance: cm
+    };
+  }
+
+  function setupCodeEditors() {
+    if (!window.CodeMirror || !window.acorn) {
+      toast('Não foi possível carregar o editor local. Verifique os arquivos da pasta vendor.', true);
+      return;
+    }
+    const machineTextarea = els.machineEditor;
+    const ruleTextarea = els.ruleEditor;
+    els.machineEditor = createCodeEditor(machineTextarea, 'application/json');
+    els.ruleEditor = createCodeEditor(ruleTextarea, 'javascript');
+    editorInstances.machine = els.machineEditor.instance;
+    editorInstances.rule = els.ruleEditor.instance;
+  }
+
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
+  }
+
+  function renderDiagnostics(container, diagnostics, fallbackText) {
+    if (!container) return;
+    if (!diagnostics.length) {
+      container.innerHTML = `<span class="diagnostic-ok">✓ ${escapeHtml(fallbackText)}</span>`;
+      return;
+    }
+    container.innerHTML = diagnostics.map((item) => {
+      const kind = item.kind || 'warning';
+      const location = Number.isInteger(item.line)
+        ? `<button type="button" class="diagnostic-location" data-line="${item.line}" data-column="${Number.isInteger(item.column) ? item.column : 0}">linha ${item.line + 1} ↗</button>`
+        : '';
+      return `<div class="diagnostic-item ${kind}"><span class="diagnostic-symbol">${kind === 'error' ? '×' : '!'}</span><span class="diagnostic-message">${escapeHtml(item.message)}</span>${location}</div>`;
+    }).join('');
+  }
+
+  function analyzeMachineJson(source) {
+    const diagnostics = [];
+    let machine;
+    try { machine = JSON.parse(source); }
+    catch (error) {
+      const positionMatch = String(error.message).match(/position\s+(\d+)/i);
+      let line = null, column = null;
+      if (positionMatch) {
+        const before = source.slice(0, Number(positionMatch[1]));
+        line = before.split('\n').length - 1;
+        column = before.length - before.lastIndexOf('\n') - 1;
+      }
+      diagnostics.push({ kind: 'error', message: `JSON inválido: ${error.message}`, line, column });
+      return diagnostics;
+    }
+
+    if (!machine || typeof machine !== 'object' || Array.isArray(machine)) {
+      diagnostics.push({ kind: 'error', message: 'A raiz do JSON precisa ser um objeto.' });
+      return diagnostics;
+    }
+    const structural = safeParseMachine(source);
+    if (!structural.ok) diagnostics.push({ kind: 'error', message: structural.error });
+
+    const seenStates = new Set();
+    if (Array.isArray(machine.states)) {
+      machine.states.forEach((state, index) => {
+        const key = stateKey(state);
+        if (seenStates.has(key)) diagnostics.push({ kind: 'error', message: `Estado duplicado na posição ${index + 1}: ${stateLabel(state)}.` });
+        seenStates.add(key);
+      });
+    }
+
+    if (machine.initialState !== undefined && machine.initialState !== null && Array.isArray(machine.states)) {
+      if (!machine.states.some((state) => stateKey(state) === stateKey(machine.initialState))) {
+        diagnostics.push({ kind: 'error', message: 'O campo initialState aponta para um estado que não existe em states.' });
+      }
+    }
+    if (machine.acceptingStates !== undefined) {
+      if (!Array.isArray(machine.acceptingStates)) {
+        diagnostics.push({ kind: 'error', message: 'acceptingStates precisa ser um array de estados.' });
+      } else if (Array.isArray(machine.states)) {
+        machine.acceptingStates.forEach((state) => {
+          if (!machine.states.some((candidate) => stateKey(candidate) === stateKey(state))) {
+            diagnostics.push({ kind: 'error', message: `Estado de aceitação inexistente: ${stateLabel(state)}.` });
+          }
+        });
+      }
+    }
+
+    if (Array.isArray(machine.alphabet)) {
+      const symbols = new Set();
+      machine.alphabet.forEach((symbol, index) => {
+        const key = stateKey(symbol);
+        if (symbols.has(key)) diagnostics.push({ kind: 'warning', message: `Símbolo duplicado no alfabeto (posição ${index + 1}): ${stateLabel(symbol)}.` });
+        symbols.add(key);
+      });
+    }
+
+    // The conventional transitions shape is checked gently. Custom rule/data shapes remain allowed.
+    if (machine.transitions && typeof machine.transitions === 'object' && !Array.isArray(machine.transitions) && Array.isArray(machine.states)) {
+      const knownStates = new Set(machine.states.map(stateKey));
+      Object.entries(machine.transitions).forEach(([from, bySymbol]) => {
+        if (!machine.states.some((state) => String(stateId(state)) === from)) {
+          diagnostics.push({ kind: 'warning', message: `A origem da transição "${from}" não corresponde a um estado declarado.` });
+          return;
+        }
+        if (!bySymbol || typeof bySymbol !== 'object' || Array.isArray(bySymbol)) return;
+        Object.entries(bySymbol).forEach(([symbol, target]) => {
+          if (target === null || (typeof target === 'object' && target !== null)) return;
+          if (!knownStates.has(stateKey(target))) {
+            diagnostics.push({ kind: 'warning', message: `A transição ${from} / ${symbol} aponta para "${String(target)}", que não está em states.` });
+          }
+        });
+      });
+    }
+
+    return diagnostics;
+  }
+
+  function analyzeRuleCode(source) {
+    const diagnostics = [];
+    if (!source.trim()) return [{ kind: 'error', message: 'Escreva uma regra JavaScript antes de executar.' }];
+    let ast;
+    try {
+      const wrapped = `function __automata_rule(operation, machine, context) {\n${source}\n}`;
+      ast = acorn.parse(wrapped, { ecmaVersion: 'latest', sourceType: 'script', locations: true, allowHashBang: true });
+    } catch (error) {
+      const loc = error.loc || {};
+      const line = Number.isInteger(loc.line) ? Math.max(0, loc.line - 2) : null;
+      diagnostics.push({ kind: 'error', message: `JavaScript inválido: ${error.message}`, line, column: Number.isInteger(loc.column) ? loc.column : null });
+      return diagnostics;
+    }
+
+    let foundReturn = false;
+    let bareReturn = false;
+    const walk = (node, isRoot = false) => {
+      if (!node || typeof node !== 'object') return;
+      if (!isRoot && /Function(?:Declaration|Expression)$/.test(node.type) || node.type === 'ArrowFunctionExpression') return;
+      if (node.type === 'ReturnStatement') {
+        foundReturn = true;
+        if (!node.argument || (node.argument.type === 'Identifier' && node.argument.name === 'undefined')) {
+          bareReturn = true;
+          const line = Number.isInteger(node.loc?.start?.line) ? Math.max(0, node.loc.start.line - 2) : null;
+          diagnostics.push({ kind: 'error', message: 'Este return produz undefined; o motor exige um estado válido ou null.', line });
+        }
+      }
+      for (const [key, value] of Object.entries(node)) {
+        if (key === 'loc' || key === 'start' || key === 'end') continue;
+        if (Array.isArray(value)) value.forEach((child) => { if (child && typeof child.type === 'string') walk(child); });
+        else if (value && typeof value.type === 'string') walk(value);
+      }
+    };
+    const ruleFunction = ast.body[0];
+    walk(ruleFunction.body, true);
+    if (!foundReturn) diagnostics.unshift({ kind: 'error', message: 'A regra não contém return. Retorne o próximo estado ou null para encerrar.' });
+    if (foundReturn && !bareReturn) {
+      // Parsing succeeded and at least one explicit state/result is returned.
+    }
+    return diagnostics;
+  }
+
+  function validateRuleEditor() {
+    const diagnostics = analyzeRuleCode(els.ruleEditor.value);
+    renderDiagnostics(els.ruleDiagnostics, diagnostics, 'Sintaxe válida e retorno encontrado');
+    const hasError = diagnostics.some((item) => item.kind === 'error');
+    ruleIsValid = !hasError;
+    const hasWarning = diagnostics.some((item) => item.kind === 'warning');
+    if (els.ruleTabStatus) els.ruleTabStatus.textContent = hasError ? '!' : hasWarning ? '⚠' : '✓';
+    if (els.ruleTabStatus) {
+      els.ruleTabStatus.classList.toggle('invalid', hasError);
+      els.ruleTabStatus.classList.toggle('has-warning', hasWarning);
+    }
+    updateActiveEditorStatus();
+    return !hasError;
+  }
+
+  function validateMachineEditor() {
+    const diagnostics = analyzeMachineJson(els.machineEditor.value);
+    renderDiagnostics(els.jsonDiagnostics, diagnostics, 'JSON e estrutura válidos');
+    const hasError = diagnostics.some((item) => item.kind === 'error');
+    machineIsValid = !hasError;
+    const hasWarning = diagnostics.some((item) => item.kind === 'warning');
+    if (els.jsonTabStatus) els.jsonTabStatus.textContent = hasError ? '!' : hasWarning ? '⚠' : '✓';
+    if (els.jsonTabStatus) {
+      els.jsonTabStatus.classList.toggle('invalid', hasError);
+      els.jsonTabStatus.classList.toggle('has-warning', hasWarning);
+    }
+    updateActiveEditorStatus();
+    return !hasError;
+  }
+
+  function updateActiveEditorStatus() {
+    if (!els.activeEditorStatus) return;
+    if (activeEditorTab === 'machine') {
+      const invalid = els.jsonTabStatus?.classList.contains('invalid');
+      const warning = els.jsonTabStatus?.classList.contains('has-warning');
+      els.activeEditorStatus.textContent = invalid ? 'Revisar estrutura' : warning ? 'Verificar avisos' : 'JSON válido';
+      els.activeEditorStatus.classList.toggle('has-error', !!invalid);
+      els.activeEditorStatus.classList.toggle('has-warning', !!warning);
+    } else {
+      const invalid = els.ruleTabStatus?.classList.contains('invalid');
+      const warning = els.ruleTabStatus?.classList.contains('has-warning');
+      els.activeEditorStatus.textContent = invalid ? 'Revisar regra' : warning ? 'Verificar avisos' : 'JavaScript válido';
+      els.activeEditorStatus.classList.toggle('has-error', !!invalid);
+      els.activeEditorStatus.classList.toggle('has-warning', !!warning);
+    }
+  }
+
+  function activateEditorTab(tab) {
+    activeEditorTab = tab === 'rule' ? 'rule' : 'machine';
+    document.querySelectorAll('[data-editor-tab]').forEach((button) => {
+      const active = button.dataset.editorTab === activeEditorTab;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-selected', String(active));
+      button.tabIndex = active ? 0 : -1;
+    });
+    document.querySelectorAll('.editor-panel').forEach((panel) => {
+      const active = panel.id === (activeEditorTab === 'machine' ? 'machineEditorPanel' : 'ruleEditorPanel');
+      panel.hidden = !active;
+      panel.classList.toggle('active', active);
+    });
+    if (els.formatJsonButton) els.formatJsonButton.hidden = activeEditorTab !== 'machine';
+    updateActiveEditorStatus();
+    const editor = editorInstances[activeEditorTab];
+    if (editor) { editor.refresh(); requestAnimationFrame(() => editor.refresh()); }
+  }
 
   function createEmptyExecution() {
     return { operations: [], snapshots: [], transitions: [], cursor: 0, error: null, startedAt: null, elapsed: null, hasRun: false };
@@ -229,6 +505,8 @@ return nextState;`;
     els.breadcrumbName.textContent = current.name || 'Máquina sem nome';
     els.machineEditor.value = current.machineJson;
     els.ruleEditor.value = current.rule;
+    validateMachineEditor();
+    validateRuleEditor();
     els.inputEditor.value = current.input;
     els.updatedLabel.textContent = formatTime(current.updatedAt);
     els.savedIndicator.innerHTML = currentEphemeral
@@ -247,6 +525,7 @@ return nextState;`;
     currentEphemeral = false;
     persistLibrary();
     loadCurrentIntoUI();
+    activateEditorTab('machine');
     renderMachineList();
     closeSidebar();
     els.machineName.focus();
@@ -266,6 +545,7 @@ return nextState;`;
     currentEphemeral = false;
     persistLibrary();
     loadCurrentIntoUI();
+    activateEditorTab('machine');
     renderMachineList();
     toast('Cópia criada na sua biblioteca.');
   }
@@ -295,8 +575,8 @@ return nextState;`;
     const result = safeParseMachine(els.machineEditor.value);
     parsedMachine = result.ok ? result.value : null;
     if (!result.ok) {
-      els.jsonStatus.textContent = 'JSON inválido';
-      els.jsonStatus.style.color = 'var(--red)';
+      if (els.jsonStatus) { els.jsonStatus.textContent = 'JSON inválido'; els.jsonStatus.style.color = 'var(--red)'; }
+      validateMachineEditor();
       els.stateCount.textContent = result.error;
       els.alphabetLabel.textContent = 'Alfabeto: —';
       drawGraph(null);
@@ -304,8 +584,8 @@ return nextState;`;
       updateExecutionView();
       return;
     }
-    els.jsonStatus.textContent = 'JSON válido';
-    els.jsonStatus.style.color = 'var(--accent)';
+    if (els.jsonStatus) { els.jsonStatus.textContent = 'JSON válido'; els.jsonStatus.style.color = 'var(--accent)'; }
+    validateMachineEditor();
     els.stateCount.textContent = `${result.value.states.length} ${result.value.states.length === 1 ? 'estado' : 'estados'}`;
     els.alphabetLabel.textContent = `Alfabeto: { ${result.value.alphabet.map(stateLabel).join(', ')} }`;
     els.machineTypeChip.textContent = inferMachineType(result.value);
@@ -397,6 +677,7 @@ return nextState;`;
 
   function onRuleEdited() {
     refreshCurrentFromFields();
+    validateRuleEditor();
     resetExecution(false);
     updateExecutionView();
   }
@@ -609,6 +890,7 @@ return nextState;`;
     els.runResult.className = resultClass;
     els.executionTime.textContent = execution.elapsed !== null ? `${execution.elapsed} ms` : '';
 
+    if (els.historyCount) els.historyCount.textContent = `${execution.transitions.length + (execution.error ? 1 : 0)} eventos`;
     els.executionLog.innerHTML = '';
     if (execution.error) {
       const err = document.createElement('div');
@@ -634,8 +916,9 @@ return nextState;`;
     }
     if (validMachine) drawGraph(validMachine);
     const finished = execution.hasRun && (cursor >= ops.length || machineAtCursor?.state === null || execution.error);
-    els.stepButton.disabled = !validMachine || !!execution.error || finished;
-    els.runAllButton.disabled = !validMachine;
+    const canRun = !!validMachine && machineIsValid && ruleIsValid;
+    els.stepButton.disabled = !canRun || !!execution.error || finished;
+    els.runAllButton.disabled = !canRun;
     els.stepButton.style.opacity = els.stepButton.disabled ? '.5' : '1';
     els.runAllButton.style.opacity = els.runAllButton.disabled ? '.5' : '1';
   }
@@ -723,7 +1006,8 @@ return nextState;`;
   }
 
   async function runOneStep() {
-    if (!parsedMachine) { toast('Corrija o objeto da máquina antes de executar.', true); return; }
+    if (!parsedMachine || !machineIsValid) { toast('Corrija o objeto da máquina antes de executar.', true); return; }
+    if (!validateRuleEditor()) { toast('Corrija a regra JavaScript antes de executar.', true); return; }
     let operations;
     try { operations = getValidatedOperations(); }
     catch (error) { setInputStatus(error.message, false); toast(error.message, true); return; }
@@ -756,7 +1040,8 @@ return nextState;`;
   }
 
   async function runAll() {
-    if (!parsedMachine) { toast('Corrija o objeto da máquina antes de executar.', true); return; }
+    if (!parsedMachine || !machineIsValid) { toast('Corrija o objeto da máquina antes de executar.', true); return; }
+    if (!validateRuleEditor()) { toast('Corrija a regra JavaScript antes de executar.', true); return; }
     let operations;
     try { operations = getValidatedOperations(); }
     catch (error) { setInputStatus(error.message, false); toast(error.message, true); return; }
@@ -941,6 +1226,19 @@ return nextState;`;
     });
     els.machineEditor.addEventListener('input', onMachineEdited);
     els.ruleEditor.addEventListener('input', onRuleEdited);
+    document.querySelectorAll('[data-editor-tab]').forEach((button) => {
+      button.addEventListener('click', () => activateEditorTab(button.dataset.editorTab));
+    });
+    [els.jsonDiagnostics, els.ruleDiagnostics].forEach((container) => {
+      container?.addEventListener('click', (event) => {
+        const target = event.target.closest('[data-line]');
+        if (!target) return;
+        const editorTab = container === els.jsonDiagnostics ? 'machine' : 'rule';
+        activateEditorTab(editorTab);
+        const editor = els[editorTab === 'machine' ? 'machineEditor' : 'ruleEditor'];
+        editor.jumpToLine(Number(target.dataset.line), Number(target.dataset.column || 0));
+      });
+    });
     els.inputEditor.addEventListener('input', onInputEdited);
     els.formatJsonButton.addEventListener('click', () => {
       try {
@@ -1040,6 +1338,7 @@ return nextState;`;
   }
 
   async function init() {
+    setupCodeEditors();
     loadLibrary();
     bindEvents();
     if (!machines.length) {
@@ -1055,6 +1354,7 @@ return nextState;`;
       currentEphemeral = false;
     }
     loadCurrentIntoUI();
+    activateEditorTab('machine');
     renderMachineList();
     await openShareFromHash();
   }
