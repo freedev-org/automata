@@ -135,3 +135,16 @@
 @media(max-width:900px){.workbench-grid{grid-template-columns:1fr}.graph-card,.execution-card{min-height:0}.graph-wrap{height:340px;flex:none}.execution-card{min-height:390px}.editor-workspace{margin-top:13px}}
 @media(max-width:650px){.page-content{padding:17px 11px 13px}.machine-heading{display:block;margin-bottom:14px}.machine-name-input{font-size:22px;width:min(90vw,500px)}.heading-meta{display:none}.workbench-grid{gap:11px}.graph-wrap{height:275px;min-height:250px}.graph-card{min-height:0}.graph-heading{padding:13px 13px 8px}.graph-legend{padding-left:13px}.graph-footer{padding:7px 11px}.execution-heading{padding:13px 13px 9px}.simulator-input{padding:9px 12px}.run-controls{padding:10px 11px}.trace-header{padding-left:12px;padding-right:12px}.token-track{padding-left:11px;padding-right:11px}.detail-cell{padding:9px 7px}.detail-cell>span{font-size:6px}.detail-cell strong{font-size:9px}.editor-workspace-header{padding:0 7px;gap:5px}.editor-tabs{gap:0}.editor-tab{font-size:9px;padding:0 8px;gap:6px}.editor-tools{gap:5px}.editor-status{display:none}.editor-tools .mini-button{padding:6px 7px;font-size:8px}.CodeMirror,.object-editor,.rule-editor{height:245px;min-height:190px;font-size:10px}.editor-footer{font-size:7px;gap:5px}.diagnostics{padding:6px 9px}.page-footer{padding-top:16px}}
 .tab-status.has-warning{color:#e2c28a}.editor-status.has-warning{color:#d8bd83}
+
+/* YAML definition editor and contextual rule documentation. */
+.yaml-dot{background:#8db8e8}
+.variable-doc-link{border:0;background:transparent;color:#b4d0ff;text-decoration:underline;text-decoration-color:#61748e;text-underline-offset:3px;padding:0 1px;font:inherit;cursor:pointer}
+.variable-doc-link:hover{color:#e0edff;text-decoration-color:#b4d0ff}
+.variable-doc-content{display:flex;flex-direction:column;gap:14px}
+.variable-doc-intro{font-size:12px;line-height:1.75;color:#c0cad8;margin:0 0 3px}
+.variable-doc-section{border-top:1px solid #30394a;padding-top:12px}
+.variable-doc-section h3,.variable-doc-example-title{font-size:11px;font-weight:650;color:#dce5f1;margin:0 0 6px}
+.variable-doc-section p{font-size:11px;line-height:1.75;color:#9eacbf;margin:0}
+.variable-doc-section code{white-space:nowrap}
+.variable-doc-content .help-code{margin:2px 0 0}
+@media(max-width:650px){.variable-doc-content{padding:16px}.variable-doc-intro{font-size:11px}.variable-doc-section p{font-size:10px}.editor-footer .variable-doc-link{font-size:7px}}

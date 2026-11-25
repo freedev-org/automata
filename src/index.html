@@ -25,7 +25,7 @@
       <nav class="machine-list" id="machineList" aria-label="Minhas máquinas"></nav>
 
       <div class="sidebar-bottom">
-        <button class="sidebar-action" id="importButton"><span class="action-icon">↥</span> Importar máquina <span class="shortcut">JSON</span></button>
+        <button class="sidebar-action" id="importButton"><span class="action-icon">↥</span> Importar máquina <span class="shortcut">YAML / JSON</span></button>
         <button class="sidebar-action" id="helpButton"><span class="action-icon">?</span> Ajuda e exemplos</button>
         <div class="sidebar-footnote"><span class="status-dot"></span> Seus projetos ficam neste navegador</div>
       </div>
@@ -103,27 +103,27 @@
         <section class="section-card editor-workspace" aria-label="Editores da máquina">
           <div class="editor-workspace-header">
             <div class="editor-tabs" role="tablist" aria-label="Arquivos da máquina">
-              <button id="machineEditorTab" class="editor-tab active" type="button" role="tab" aria-selected="true" aria-controls="machineEditorPanel" data-editor-tab="machine"><span class="file-dot json-dot"></span> machine.json <span class="tab-status" id="jsonTabStatus">✓</span></button>
+              <button id="machineEditorTab" class="editor-tab active" type="button" role="tab" aria-selected="true" aria-controls="machineEditorPanel" data-editor-tab="machine"><span class="file-dot yaml-dot"></span> machine.yaml <span class="tab-status" id="machineTabStatus">✓</span></button>
               <button id="ruleEditorTab" class="editor-tab" type="button" role="tab" aria-selected="false" aria-controls="ruleEditorPanel" data-editor-tab="rule"><span class="file-dot js-dot"></span> transition.js <span class="tab-status" id="ruleTabStatus">✓</span></button>
             </div>
-            <div class="editor-tools"><span class="editor-status" id="activeEditorStatus">JSON válido</span><button class="mini-button" id="formatJsonButton" title="Formatar JSON">Formatar JSON</button></div>
+            <div class="editor-tools"><span class="editor-status" id="activeEditorStatus">YAML válido</span><button class="mini-button" id="formatMachineButton" title="Formatar definição YAML">Formatar YAML</button></div>
           </div>
 
           <section class="editor-panel active" id="machineEditorPanel" role="tabpanel" aria-labelledby="machineEditorTab">
-            <div class="editor-toolbar"><span id="jsonStatus" hidden></span><span>Objeto da máquina</span><span class="toolbar-spacer"></span><span class="editor-hint">JSON · estrutura e dados</span></div>
-            <textarea id="machineEditor" class="code-editor object-editor" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Objeto JSON da máquina"></textarea>
-            <div class="editor-footer"><span>Defina estados, alfabeto, estado inicial, transições e dados próprios.</span><span id="stateCount">0 estados</span></div>
-            <div class="diagnostics" id="jsonDiagnostics" aria-live="polite"><span class="diagnostic-ok">✓ JSON e estrutura válidos</span></div>
+            <div class="editor-toolbar"><span id="machineStatus" hidden></span><span>Objeto da máquina</span><span class="toolbar-spacer"></span><span class="editor-hint">YAML · estrutura e dados</span></div>
+            <textarea id="machineEditor" class="code-editor object-editor" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Definição YAML da máquina"></textarea>
+            <div class="editor-footer"><span>Defina estados, alfabeto, estado inicial, transições e dados próprios em YAML.</span><span id="stateCount">0 estados</span></div>
+            <div class="diagnostics" id="machineDiagnostics" aria-live="polite"><span class="diagnostic-ok">✓ YAML e estrutura válidos</span></div>
           </section>
 
           <section class="editor-panel" id="ruleEditorPanel" role="tabpanel" aria-labelledby="ruleEditorTab" hidden>
             <div class="editor-toolbar"><span>Regra de execução</span><span class="toolbar-spacer"></span><span class="editor-hint">JavaScript · corpo da função</span></div>
             <textarea id="ruleEditor" class="code-editor rule-editor" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Código JavaScript da regra de execução"></textarea>
-            <div class="editor-footer"><span>Disponíveis: <code>operation</code>, <code>machine</code> e <code>context</code>.</span><button class="text-button" id="ruleHelpButton">Ver assinatura ↗</button></div>
+            <div class="editor-footer"><span>Disponíveis: <button type="button" class="variable-doc-link" data-variable-doc="operation">operation</button>, <button type="button" class="variable-doc-link" data-variable-doc="machine">machine</button> e <button type="button" class="variable-doc-link" data-variable-doc="context">context</button>.</span><button class="text-button" id="ruleHelpButton">Ver assinatura ↗</button></div>
             <div class="diagnostics" id="ruleDiagnostics" aria-live="polite"><span class="diagnostic-ok">✓ Sintaxe válida</span></div>
           </section>
         </section>
-        <footer class="page-footer"><span>Automata <span class="footer-version">v1.1</span></span><span>Feito para experimentar. Sem backend, sem limites artificiais.</span></footer>
+        <footer class="page-footer"><span>Automata <span class="footer-version">v1.2</span></span><span>Feito para experimentar. Sem backend, sem limites artificiais.</span></footer>
       </div>
     </main>
   </div>
@@ -133,14 +133,16 @@
   <dialog class="app-dialog" id="helpDialog">
     <div class="dialog-head"><div><div class="section-kicker">GUIA RÁPIDO</div><h2>Como criar uma máquina</h2></div><button class="icon-button dialog-close" data-close="helpDialog" aria-label="Fechar">×</button></div>
     <div class="dialog-body help-content">
-      <p>O Automata separa a definição da máquina da regra que a faz funcionar. Você pode modelar um autômato finito, uma pilha, uma fita de Turing ou qualquer outra estrutura que consiga expressar em JavaScript.</p>
-      <div class="help-step"><span>1</span><div><strong>Defina o objeto</strong><p>Edite <code>machine.json</code>. O modelo básico usa <code>state</code>, <code>states</code> e <code>alphabet</code>. Acrescente os dados que sua máquina precisar, como <code>stack</code>, <code>tape</code>, <code>head</code> ou <code>memory</code>.</p></div></div>
-      <pre class="help-code">{
-  "state": "q0",
-  "states": ["q0", "q1"],
-  "alphabet": ["0", "1"],
-  "transitions": { "q0": { "0": "q0", "1": "q1" } }
-}</pre>
+      <p>O Automata separa a definição da máquina da regra que a faz funcionar. A definição usa YAML, um formato compacto e legível; projetos antigos em JSON continuam compatíveis e são convertidos quando abertos. Você pode modelar um autômato finito, uma pilha, uma fita de Turing ou qualquer outra estrutura que consiga expressar em JavaScript.</p>
+      <div class="help-step"><span>1</span><div><strong>Defina o objeto</strong><p>Edite <code>machine.yaml</code>. O modelo básico usa <code>state</code>, <code>states</code> e <code>alphabet</code>. Acrescente os dados que sua máquina precisar, como <code>stack</code>, <code>tape</code>, <code>head</code> ou <code>memory</code>.</p></div></div>
+      <pre class="help-code">state: q0
+states: [q0, q1]
+alphabet: ["0", "1"]
+acceptingStates: [q1]
+
+transitions:
+  q0: { "0": q0, "1": q1 }
+  q1: { "0": q0, "1": q1 }</pre>
       <div class="help-step"><span>2</span><div><strong>Escreva a regra</strong><p>O código é executado para cada símbolo. Recebe <code>operation</code>, o objeto mutável <code>machine</code> e <code>context</code>. Retorne o identificador do próximo estado. Você pode alterar qualquer outro dado de <code>machine</code> antes de retornar.</p></div></div>
       <pre class="help-code">const next = machine.transitions[machine.state]?.[operation];
 if (next === undefined) throw new Error("Transição não definida");
@@ -149,10 +151,16 @@ return next;</pre>
       <div class="help-step"><span>3</span><div><strong>Informe a entrada</strong><p>Para alfabetos de símbolos de um caractere, digite a sequência diretamente. Para símbolos compostos, use um array JSON, como <code>["push", "pop"]</code>. Todo símbolo precisa pertencer a <code>alphabet</code>.</p></div></div>
       <div class="help-step"><span>4</span><div><strong>Execute e observe</strong><p>Use <em>Próximo passo</em> para avançar ou <em>Executar tudo</em> para reiniciar e processar a entrada inteira. O estado <code>null</code> encerra a máquina imediatamente.</p></div></div>
       <div class="help-callout"><strong>Sobre estados e o diagrama</strong><p>Os estados podem ser strings, números ou objetos com uma propriedade <code>id</code>. As transições presentes em <code>machine.transitions</code> são desenhadas automaticamente. Para regras mais complexas, o diagrama também aprende as conexões observadas durante a simulação. Se houver <code>acceptingStates</code>, o simulador informa se o estado final é de aceitação.</p></div>
-      <div class="help-callout"><strong>Compartilhamento</strong><p>O link compartilhável leva uma cópia compactada dos dados no fragmento da URL. A pessoa pode abrir, conferir e salvar a máquina na própria biblioteca. Também é possível exportar e importar um arquivo JSON.</p></div>
+      <div class="help-callout"><strong>Compartilhamento</strong><p>O link compartilhável leva uma cópia compactada dos dados no fragmento da URL. A pessoa pode abrir, conferir e salvar a máquina na própria biblioteca. Também é possível importar arquivos YAML de máquina ou exportar um projeto completo em JSON.</p></div>
       <div class="help-warning"><span>ⓘ</span><p>Regras são código JavaScript. Elas rodam em um Web Worker separado, sem acesso ao DOM ou ao <code>localStorage</code> da aplicação, e com limite de tempo por execução. Só execute máquinas de fontes em que confia.</p></div>
     </div>
     <div class="dialog-foot"><button class="button button-primary" data-close="helpDialog">Entendi</button></div>
+  </dialog>
+
+  <dialog class="app-dialog narrow-dialog" id="variableDocsDialog">
+    <div class="dialog-head"><div><div class="section-kicker">DOCUMENTAÇÃO DA REGRA</div><h2 id="variableDocTitle">Variável</h2></div><button class="icon-button dialog-close" data-close="variableDocsDialog" aria-label="Fechar">×</button></div>
+    <div class="dialog-body variable-doc-content" id="variableDocContent"></div>
+    <div class="dialog-foot"><button class="button button-primary" data-close="variableDocsDialog">Fechar</button></div>
   </dialog>
 
   <dialog class="app-dialog narrow-dialog" id="shareDialog">
@@ -174,7 +182,7 @@ return next;</pre>
     <div class="dialog-body import-content"><div class="import-preview-icon">◎</div><p id="importDescription">Confira a definição antes de salvar uma cópia na sua biblioteca.</p><div class="import-meta" id="importMeta"></div><div class="import-actions"><button class="button button-primary" id="saveSharedButton">Salvar nas minhas máquinas</button><button class="button button-secondary" id="openSharedButton">Abrir sem salvar</button></div><p class="share-footnote">O código da regra só será executado quando você iniciar a simulação.</p></div>
   </dialog>
 
-  <input id="fileInput" type="file" accept=".json,.automata.json,application/json" hidden>
+  <input id="fileInput" type="file" accept=".yaml,.yml,.json,.automata.json,application/json,text/yaml" hidden>
   <div class="toast-region" id="toastRegion" aria-live="polite"></div>
   <script src="vendor/codemirror/codemirror.js"></script>
   <script src="vendor/codemirror/mode/javascript/javascript.js"></script>
@@ -186,6 +194,8 @@ return next;</pre>
   <script src="vendor/codemirror/addon/fold/brace-fold.js"></script>
   <script src="vendor/codemirror/addon/fold/foldgutter.js"></script>
   <script src="vendor/acorn/acorn.js"></script>
+  <script src="machine-format.js"></script>
+  <script src="vendor/codemirror/mode/yaml/yaml.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

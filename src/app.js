@@ -31,7 +31,7 @@ return nextState;`;
     exportButton: $('exportButton'), shareButton: $('shareButton'), topHelpButton: $('topHelpButton'),
     machineName: $('machineName'), updatedLabel: $('updatedLabel'), machineTypeChip: $('machineTypeChip'),
     machineEditor: $('machineEditor'), ruleEditor: $('ruleEditor'), inputEditor: $('inputEditor'),
-    formatJsonButton: $('formatJsonButton'), jsonStatus: $('jsonStatus'), stateCount: $('stateCount'),
+    formatMachineButton: $('formatMachineButton'), machineStatus: $('machineStatus'), stateCount: $('stateCount'),
     ruleHelpButton: $('ruleHelpButton'), alphabetLabel: $('alphabetLabel'), parseInputButton: $('parseInputButton'),
     inputStatus: $('inputStatus'), stateGraph: $('stateGraph'), graphEmpty: $('graphEmpty'),
     graphSummary: $('graphSummary'), graphResetButton: $('graphResetButton'),
@@ -42,10 +42,11 @@ return nextState;`;
     shareDialog: $('shareDialog'), importDialog: $('importDialog'), shareFeedback: $('shareFeedback'),
     copyShareLinkButton: $('copyShareLinkButton'), shareExportButton: $('shareExportButton'), shareLinkField: $('shareLinkField'),
     importTitle: $('importTitle'), importDescription: $('importDescription'), importMeta: $('importMeta'),
+    variableDocsDialog: $('variableDocsDialog'), variableDocTitle: $('variableDocTitle'), variableDocContent: $('variableDocContent'),
     saveSharedButton: $('saveSharedButton'), openSharedButton: $('openSharedButton'),
     fileInput: $('fileInput'), toastRegion: $('toastRegion'),
-    jsonDiagnostics: $('jsonDiagnostics'), ruleDiagnostics: $('ruleDiagnostics'),
-    activeEditorStatus: $('activeEditorStatus'), jsonTabStatus: $('jsonTabStatus'), ruleTabStatus: $('ruleTabStatus'),
+    machineDiagnostics: $('machineDiagnostics'), ruleDiagnostics: $('ruleDiagnostics'),
+    activeEditorStatus: $('activeEditorStatus'), machineTabStatus: $('machineTabStatus'), ruleTabStatus: $('ruleTabStatus'),
     historyCount: $('historyCount')
   };
 
@@ -114,13 +115,13 @@ return nextState;`;
   }
 
   function setupCodeEditors() {
-    if (!window.CodeMirror || !window.acorn) {
+    if (!window.CodeMirror || !window.acorn || !window.AutomataFormat) {
       toast('Não foi possível carregar o editor local. Verifique os arquivos da pasta vendor.', true);
       return;
     }
     const machineTextarea = els.machineEditor;
     const ruleTextarea = els.ruleEditor;
-    els.machineEditor = createCodeEditor(machineTextarea, 'application/json');
+    els.machineEditor = createCodeEditor(machineTextarea, 'yaml');
     els.ruleEditor = createCodeEditor(ruleTextarea, 'javascript');
     editorInstances.machine = els.machineEditor.instance;
     editorInstances.rule = els.ruleEditor.instance;
@@ -145,28 +146,14 @@ return nextState;`;
     }).join('');
   }
 
-  function analyzeMachineJson(source) {
+  function analyzeMachineDefinition(source) {
     const diagnostics = [];
-    let machine;
-    try { machine = JSON.parse(source); }
-    catch (error) {
-      const positionMatch = String(error.message).match(/position\s+(\d+)/i);
-      let line = null, column = null;
-      if (positionMatch) {
-        const before = source.slice(0, Number(positionMatch[1]));
-        line = before.split('\n').length - 1;
-        column = before.length - before.lastIndexOf('\n') - 1;
-      }
-      diagnostics.push({ kind: 'error', message: `JSON inválido: ${error.message}`, line, column });
+    const parsed = AutomataFormat.parseMachineSource(source);
+    if (!parsed.ok) {
+      diagnostics.push({ kind: 'error', message: `Definição inválida: ${parsed.error}`, line: parsed.line, column: parsed.column });
       return diagnostics;
     }
-
-    if (!machine || typeof machine !== 'object' || Array.isArray(machine)) {
-      diagnostics.push({ kind: 'error', message: 'A raiz do JSON precisa ser um objeto.' });
-      return diagnostics;
-    }
-    const structural = safeParseMachine(source);
-    if (!structural.ok) diagnostics.push({ kind: 'error', message: structural.error });
+    const machine = parsed.value;
 
     const seenStates = new Set();
     if (Array.isArray(machine.states)) {
@@ -184,7 +171,7 @@ return nextState;`;
     }
     if (machine.acceptingStates !== undefined) {
       if (!Array.isArray(machine.acceptingStates)) {
-        diagnostics.push({ kind: 'error', message: 'acceptingStates precisa ser um array de estados.' });
+        diagnostics.push({ kind: 'error', message: 'acceptingStates precisa ser uma lista de estados.' });
       } else if (Array.isArray(machine.states)) {
         machine.acceptingStates.forEach((state) => {
           if (!machine.states.some((candidate) => stateKey(candidate) === stateKey(state))) {
@@ -203,7 +190,7 @@ return nextState;`;
       });
     }
 
-    // The conventional transitions shape is checked gently. Custom rule/data shapes remain allowed.
+    // Validate the conventional transition map without restricting custom machine data.
     if (machine.transitions && typeof machine.transitions === 'object' && !Array.isArray(machine.transitions) && Array.isArray(machine.states)) {
       const knownStates = new Set(machine.states.map(stateKey));
       Object.entries(machine.transitions).forEach(([from, bySymbol]) => {
@@ -211,10 +198,15 @@ return nextState;`;
           diagnostics.push({ kind: 'warning', message: `A origem da transição "${from}" não corresponde a um estado declarado.` });
           return;
         }
-        if (!bySymbol || typeof bySymbol !== 'object' || Array.isArray(bySymbol)) return;
+        if (!bySymbol || typeof bySymbol !== 'object' || Array.isArray(bySymbol)) {
+          diagnostics.push({ kind: 'error', message: `As transições do estado "${from}" precisam formar um mapa de símbolo para próximo estado.` });
+          return;
+        }
         Object.entries(bySymbol).forEach(([symbol, target]) => {
-          if (target === null || (typeof target === 'object' && target !== null)) return;
-          if (!knownStates.has(stateKey(target))) {
+          if (Array.isArray(machine.alphabet) && !machine.alphabet.some((item) => String(item) === symbol)) {
+            diagnostics.push({ kind: 'warning', message: `O símbolo "${symbol}" usado em ${from} não aparece no alfabeto.` });
+          }
+          if (target !== null && !knownStates.has(stateKey(target))) {
             diagnostics.push({ kind: 'warning', message: `A transição ${from} / ${symbol} aponta para "${String(target)}", que não está em states.` });
           }
         });
@@ -282,15 +274,15 @@ return nextState;`;
   }
 
   function validateMachineEditor() {
-    const diagnostics = analyzeMachineJson(els.machineEditor.value);
-    renderDiagnostics(els.jsonDiagnostics, diagnostics, 'JSON e estrutura válidos');
+    const diagnostics = analyzeMachineDefinition(els.machineEditor.value);
+    renderDiagnostics(els.machineDiagnostics, diagnostics, 'YAML e estrutura válidos');
     const hasError = diagnostics.some((item) => item.kind === 'error');
     machineIsValid = !hasError;
     const hasWarning = diagnostics.some((item) => item.kind === 'warning');
-    if (els.jsonTabStatus) els.jsonTabStatus.textContent = hasError ? '!' : hasWarning ? '⚠' : '✓';
-    if (els.jsonTabStatus) {
-      els.jsonTabStatus.classList.toggle('invalid', hasError);
-      els.jsonTabStatus.classList.toggle('has-warning', hasWarning);
+    if (els.machineTabStatus) els.machineTabStatus.textContent = hasError ? '!' : hasWarning ? '⚠' : '✓';
+    if (els.machineTabStatus) {
+      els.machineTabStatus.classList.toggle('invalid', hasError);
+      els.machineTabStatus.classList.toggle('has-warning', hasWarning);
     }
     updateActiveEditorStatus();
     return !hasError;
@@ -299,9 +291,9 @@ return nextState;`;
   function updateActiveEditorStatus() {
     if (!els.activeEditorStatus) return;
     if (activeEditorTab === 'machine') {
-      const invalid = els.jsonTabStatus?.classList.contains('invalid');
-      const warning = els.jsonTabStatus?.classList.contains('has-warning');
-      els.activeEditorStatus.textContent = invalid ? 'Revisar estrutura' : warning ? 'Verificar avisos' : 'JSON válido';
+      const invalid = els.machineTabStatus?.classList.contains('invalid');
+      const warning = els.machineTabStatus?.classList.contains('has-warning');
+      els.activeEditorStatus.textContent = invalid ? 'Revisar estrutura' : warning ? 'Verificar avisos' : 'YAML válido';
       els.activeEditorStatus.classList.toggle('has-error', !!invalid);
       els.activeEditorStatus.classList.toggle('has-warning', !!warning);
     } else {
@@ -326,7 +318,7 @@ return nextState;`;
       panel.hidden = !active;
       panel.classList.toggle('active', active);
     });
-    if (els.formatJsonButton) els.formatJsonButton.hidden = activeEditorTab !== 'machine';
+    if (els.formatMachineButton) els.formatMachineButton.hidden = activeEditorTab !== 'machine';
     updateActiveEditorStatus();
     const editor = editorInstances[activeEditorTab];
     if (editor) { editor.refresh(); requestAnimationFrame(() => editor.refresh()); }
@@ -347,23 +339,13 @@ return nextState;`;
 
   function makeMachine(name = 'Minha primeira máquina') {
     return {
-      id: uid(), name, machineJson: JSON.stringify(DEFAULT_MACHINE, null, 2),
+      id: uid(), name, machineJson: AutomataFormat.stringifyMachineYaml(DEFAULT_MACHINE),
       rule: DEFAULT_RULE, input: '1011', updatedAt: Date.now()
     };
   }
 
   function safeParseMachine(source) {
-    let obj;
-    try { obj = JSON.parse(source); }
-    catch (error) { return { ok: false, error: error.message }; }
-    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return { ok: false, error: 'O objeto da máquina precisa ser um objeto JSON.' };
-    if (!Array.isArray(obj.states)) return { ok: false, error: 'Adicione um array "states" com os estados da máquina.' };
-    if (!Array.isArray(obj.alphabet)) return { ok: false, error: 'Adicione um array "alphabet" com os símbolos aceitos.' };
-    if (!Object.prototype.hasOwnProperty.call(obj, 'state')) return { ok: false, error: 'Defina o campo "state" com o estado inicial.' };
-    if (obj.state !== null && !obj.states.some((s) => stateKey(s) === stateKey(obj.state))) {
-      return { ok: false, error: 'O estado inicial precisa existir no array "states" (ou ser null para iniciar parada).' };
-    }
-    return { ok: true, value: obj };
+    return AutomataFormat.parseMachineSource(source);
   }
 
   function stateId(value) {
@@ -460,7 +442,7 @@ return nextState;`;
       button.innerHTML = `<span class="machine-glyph">◎</span><span class="machine-item-copy"><strong></strong><small></small></span>`;
       button.querySelector('strong').textContent = machine.name || 'Máquina sem nome';
       const parsed = safeParseMachine(machine.machineJson);
-      const stateTotal = parsed.ok ? parsed.value.states.length : 'JSON inválido';
+      const stateTotal = parsed.ok ? parsed.value.states.length : 'YAML inválido';
       button.querySelector('small').textContent = `${stateTotal} ${typeof stateTotal === 'number' ? 'estados' : ''}`;
       button.addEventListener('click', () => openMachine(machine.id));
       const remove = document.createElement('button');
@@ -503,6 +485,11 @@ return nextState;`;
     if (!current) return;
     els.machineName.value = current.name || 'Máquina sem nome';
     els.breadcrumbName.textContent = current.name || 'Máquina sem nome';
+    const storedDefinition = safeParseMachine(current.machineJson);
+    if (storedDefinition.ok && String(current.machineJson).trim().startsWith('{')) {
+      current.machineJson = AutomataFormat.stringifyMachineYaml(storedDefinition.value);
+      if (!currentEphemeral) scheduleSave();
+    }
     els.machineEditor.value = current.machineJson;
     els.ruleEditor.value = current.rule;
     validateMachineEditor();
@@ -575,16 +562,16 @@ return nextState;`;
     const result = safeParseMachine(els.machineEditor.value);
     parsedMachine = result.ok ? result.value : null;
     if (!result.ok) {
-      if (els.jsonStatus) { els.jsonStatus.textContent = 'JSON inválido'; els.jsonStatus.style.color = 'var(--red)'; }
+      if (els.machineStatus) { els.machineStatus.textContent = 'YAML inválido'; els.machineStatus.style.color = 'var(--red)'; }
       validateMachineEditor();
       els.stateCount.textContent = result.error;
       els.alphabetLabel.textContent = 'Alfabeto: —';
       drawGraph(null);
-      setInputStatus('Corrija o objeto JSON antes de executar.', false);
+      setInputStatus('Corrija a definição YAML antes de executar.', false);
       updateExecutionView();
       return;
     }
-    if (els.jsonStatus) { els.jsonStatus.textContent = 'JSON válido'; els.jsonStatus.style.color = 'var(--accent)'; }
+    if (els.machineStatus) { els.machineStatus.textContent = 'YAML válido'; els.machineStatus.style.color = 'var(--accent)'; }
     validateMachineEditor();
     els.stateCount.textContent = `${result.value.states.length} ${result.value.states.length === 1 ? 'estado' : 'estados'}`;
     els.alphabetLabel.textContent = `Alfabeto: { ${result.value.alphabet.map(stateLabel).join(', ')} }`;
@@ -1212,6 +1199,70 @@ return nextState;`;
     closeSidebar();
   }
 
+  const VARIABLE_DOCUMENTATION = {
+    operation: {
+      title: 'operation — símbolo atual',
+      intro: 'É o símbolo da entrada que a máquina está processando nesta chamada da regra. A cada passo, o Automata entrega exatamente um elemento da sequência de entrada.',
+      sections: [
+        ['Tipo e valor', 'O valor mantém o tipo definido no alfabeto: normalmente string, mas também pode ser número, booleano ou objeto. Símbolos numéricos devem ser escritos entre aspas no YAML quando representarem caracteres, por exemplo "0" e "1".'],
+        ['Como usar', 'Compare o símbolo com os valores do seu alfabeto ou use-o para consultar a tabela de transições. Para símbolos compostos, a entrada pode ser informada como uma lista JSON, por exemplo ["push", "pop"].']
+      ],
+      example: 'if (operation === "0") {\n  return "q0";\n}\n\nreturn machine.transitions[machine.state]?.[operation] ?? null;'
+    },
+    machine: {
+      title: 'machine — objeto mutável da máquina',
+      intro: 'Contém todo o estado atual da máquina. O Automata entrega uma cópia isolada desse objeto à regra em cada passo. Você pode ler e modificar propriedades livremente; as alterações são incluídas no snapshot do próximo passo.',
+      sections: [
+        ['Campos convencionais', '<code>state</code>: estado atual; começa no estado inicial e é substituído pelo retorno da regra. <code>states</code>: lista de estados válidos (strings, números ou objetos com <code>id</code>). <code>alphabet</code>: lista de símbolos permitidos na entrada. <code>acceptingStates</code>: lista opcional de estados de aceitação, usada pelo simulador para indicar aceitação. <code>transitions</code>: mapa opcional de estado → símbolo → próximo estado, se quiser usar uma tabela convencional.'],
+        ['Campos personalizados', 'Adicione qualquer dado que sua máquina precisar: <code>stack</code>, <code>tape</code>, <code>head</code>, <code>memory</code>, contadores, registradores, pilhas auxiliares ou objetos aninhados. O Automata não impõe um esquema fixo a esses campos.'],
+        ['Retorno da regra', 'O valor retornado pela regra passa a ser <code>machine.state</code>. Ele precisa corresponder a um item de <code>machine.states</code>, comparado pelo <code>id</code> quando o estado for um objeto. Retornar <code>null</code> encerra a execução imediatamente. Retornar <code>undefined</code> é erro.']
+      ],
+      example: 'machine.stack.push(operation);\nmachine.head += 1;\n\nreturn machine.transitions[machine.state][operation];'
+    },
+    context: {
+      title: 'context — contexto da execução',
+      intro: 'É um objeto informativo criado pelo motor para a chamada atual. Use-o para saber em qual passo está, consultar a entrada original e observar snapshots anteriores.',
+      sections: [
+        ['step e index', 'Números inteiros com índice baseado em zero. Indicam a posição do símbolo atual na entrada. Os dois campos são aliases e possuem o mesmo valor.'],
+        ['input', 'Cópia da sequência completa de símbolos que está sendo processada. É um array, inclusive quando o usuário digitou uma sequência simples como 0101.'],
+        ['remaining', 'Array contendo os símbolos que vêm depois do símbolo atual. Não inclui <code>operation</code>.'],
+        ['history', 'Array com snapshots anteriores da máquina, incluindo o snapshot disponível no início do passo atual. São cópias; alterar esse histórico não altera a máquina em execução.']
+      ],
+      example: 'if (context.remaining.length === 0) {\n  // Este é o último símbolo.\n}\n\nconsole.log(context.step, operation);'
+    }
+  };
+
+  function openVariableDocumentation(name) {
+    const doc = VARIABLE_DOCUMENTATION[name];
+    if (!doc) return;
+    els.variableDocTitle.textContent = doc.title;
+    els.variableDocContent.innerHTML = '';
+    const intro = document.createElement('p');
+    intro.className = 'variable-doc-intro';
+    intro.textContent = doc.intro;
+    els.variableDocContent.appendChild(intro);
+    doc.sections.forEach(([heading, body]) => {
+      const section = document.createElement('section');
+      section.className = 'variable-doc-section';
+      const title = document.createElement('h3');
+      title.textContent = heading;
+      const paragraph = document.createElement('p');
+      paragraph.innerHTML = body;
+      section.append(title, paragraph);
+      els.variableDocContent.appendChild(section);
+    });
+    if (doc.example) {
+      const label = document.createElement('h3');
+      label.className = 'variable-doc-example-title';
+      label.textContent = 'Exemplo';
+      const pre = document.createElement('pre');
+      pre.className = 'help-code';
+      pre.textContent = doc.example.replace(/\\n/g, '\n');
+      els.variableDocContent.append(label, pre);
+    }
+    openDialog(els.variableDocsDialog);
+  }
+
   function openDialog(dialog) {
     if (!dialog.open) dialog.showModal();
   }
@@ -1229,29 +1280,32 @@ return nextState;`;
     document.querySelectorAll('[data-editor-tab]').forEach((button) => {
       button.addEventListener('click', () => activateEditorTab(button.dataset.editorTab));
     });
-    [els.jsonDiagnostics, els.ruleDiagnostics].forEach((container) => {
+    [els.machineDiagnostics, els.ruleDiagnostics].forEach((container) => {
       container?.addEventListener('click', (event) => {
         const target = event.target.closest('[data-line]');
         if (!target) return;
-        const editorTab = container === els.jsonDiagnostics ? 'machine' : 'rule';
+        const editorTab = container === els.machineDiagnostics ? 'machine' : 'rule';
         activateEditorTab(editorTab);
         const editor = els[editorTab === 'machine' ? 'machineEditor' : 'ruleEditor'];
         editor.jumpToLine(Number(target.dataset.line), Number(target.dataset.column || 0));
       });
     });
     els.inputEditor.addEventListener('input', onInputEdited);
-    els.formatJsonButton.addEventListener('click', () => {
-      try {
-        els.machineEditor.value = JSON.stringify(JSON.parse(els.machineEditor.value), null, 2);
-        onMachineEdited();
-        toast('JSON formatado.');
-      } catch (error) { toast(`JSON inválido: ${error.message}`, true); }
+    els.formatMachineButton.addEventListener('click', () => {
+      const parsed = safeParseMachine(els.machineEditor.value);
+      if (!parsed.ok) { toast(`Não foi possível formatar: ${parsed.error}`, true); return; }
+      els.machineEditor.value = AutomataFormat.stringifyMachineYaml(parsed.value);
+      onMachineEdited();
+      toast('Definição YAML formatada.');
     });
     els.parseInputButton.addEventListener('click', () => {
       try { getValidatedOperations(); validateInputOnly(); toast('Input compatível com o alfabeto.'); }
       catch (error) { setInputStatus(error.message, false); toast(error.message, true); }
     });
     els.ruleHelpButton.addEventListener('click', () => openDialog(els.helpDialog));
+    document.querySelectorAll('[data-variable-doc]').forEach((button) => {
+      button.addEventListener('click', () => openVariableDocumentation(button.dataset.variableDoc));
+    });
     els.helpButton.addEventListener('click', () => { openDialog(els.helpDialog); closeSidebar(); });
     els.topHelpButton.addEventListener('click', () => openDialog(els.helpDialog));
     els.openSidebar.addEventListener('click', openSidebar);
@@ -1294,7 +1348,22 @@ return nextState;`;
       const file = els.fileInput.files?.[0];
       if (!file) return;
       try {
-        const project = validateProject(JSON.parse(await file.text()));
+        const text = await file.text();
+        let project = null;
+        try {
+          const parsedFile = JSON.parse(text);
+          if (parsedFile && (parsedFile.format === 'automata-project' || typeof parsedFile.rule === 'string')) {
+            project = validateProject(parsedFile);
+          } else {
+            const machine = AutomataFormat.parseMachineSource(text);
+            if (!machine.ok) throw new Error(machine.error);
+            project = { name: file.name.replace(/\.(automata\.)?(json|ya?ml)$/i, '') || 'Máquina importada', machineJson: AutomataFormat.stringifyMachineYaml(machine.value), rule: DEFAULT_RULE, input: '' };
+          }
+        } catch (jsonError) {
+          const machine = AutomataFormat.parseMachineSource(text);
+          if (!machine.ok) throw new Error(machine.error || jsonError.message);
+          project = { name: file.name.replace(/\.(automata\.)?(json|ya?ml)$/i, '') || 'Máquina importada', machineJson: AutomataFormat.stringifyMachineYaml(machine.value), rule: DEFAULT_RULE, input: '' };
+        }
         importIntoLibrary(project, false);
         toast('Máquina importada para sua biblioteca.');
       } catch (error) { toast(`Falha ao importar: ${error.message}`, true); }
