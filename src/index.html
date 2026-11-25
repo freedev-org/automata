@@ -62,7 +62,7 @@
               <div><div class="section-kicker">VISUALIZAÇÃO</div><h2>Diagrama de estados</h2><p>Arraste os estados para ajustar a disposição.</p></div>
               <button class="icon-button graph-fit" id="graphResetButton" title="Reorganizar diagrama" aria-label="Reorganizar diagrama">⤢</button>
             </div>
-            <div class="graph-legend"><span><i class="legend-node initial"></i> Inicial</span><span><i class="legend-node active"></i> Atual</span><span><i class="legend-line"></i> Transição</span></div>
+            <div class="graph-legend"><span><i class="legend-node initial"></i> Inicial</span><span><i class="legend-node accepting"></i> Final</span><span><i class="legend-node active"></i> Atual</span><span><i class="legend-line"></i> Transição</span></div>
             <div class="graph-wrap" id="graphWrap">
               <svg id="stateGraph" class="state-graph" role="img" aria-label="Diagrama dos estados da máquina" viewBox="0 0 680 420" preserveAspectRatio="xMidYMid meet"></svg>
               <div class="graph-empty" id="graphEmpty" hidden><div class="empty-orbit">◎</div><strong>Nenhum estado para desenhar</strong><span>Adicione estados ao objeto da máquina para montar o diagrama.</span></div>
@@ -100,6 +100,58 @@
           </section>
         </section>
 
+        <details class="section-card formal-lab" id="formalLab">
+          <summary class="formal-lab-summary">
+            <div class="formal-lab-summary-copy">
+              <div class="section-kicker">FERRAMENTAS MATEMÁTICAS</div>
+              <strong>Laboratório formal</strong>
+              <span>Análise de propriedades, tabela de transição, transformações e equivalência de linguagens.</span>
+            </div>
+            <span class="formal-lab-summary-meta">5 ferramentas <i aria-hidden="true">⌄</i></span>
+          </summary>
+          <div class="formal-lab-content">
+            <div class="formal-tabs" role="tablist" aria-label="Ferramentas formais">
+              <button type="button" class="formal-tab active" role="tab" aria-selected="true" data-formal-tab="analysis">Análise</button>
+              <button type="button" class="formal-tab" role="tab" aria-selected="false" data-formal-tab="table">Tabela de transição</button>
+              <button type="button" class="formal-tab" role="tab" aria-selected="false" data-formal-tab="transform">Transformações</button>
+              <button type="button" class="formal-tab" role="tab" aria-selected="false" data-formal-tab="equivalence">Equivalência</button>
+              <button type="button" class="formal-tab" role="tab" aria-selected="false" data-formal-tab="regex">Expressão regular</button>
+            </div>
+
+            <section class="formal-panel active" role="tabpanel" data-formal-panel="analysis">
+              <div class="formal-panel-heading"><div><h3>Propriedades da máquina</h3><p>Diagnóstico estrutural baseado na tabela <code>transitions</code>; não interpreta regras JavaScript arbitrárias.</p></div><button type="button" class="mini-button" id="formalAnalyzeButton">Analisar novamente</button></div>
+              <div id="formalAnalysisResults" class="formal-analysis-results"><div class="formal-empty">Abra esta seção para analisar a máquina atual.</div></div>
+            </section>
+
+            <section class="formal-panel" role="tabpanel" data-formal-panel="table" hidden>
+              <div class="formal-panel-heading"><div><h3>Tabela de transição</h3><p>Linhas representam estados; colunas representam símbolos. Destinos múltiplos são exibidos como conjuntos.</p></div><span class="formal-subtle" id="formalTableMeta"></span></div>
+              <div class="formal-table-wrap" id="formalTransitionTable"><div class="formal-empty">A tabela será gerada a partir da definição atual.</div></div>
+            </section>
+
+            <section class="formal-panel" role="tabpanel" data-formal-panel="transform" hidden>
+              <div class="formal-panel-heading"><div><h3>Transformações formais</h3><p>Os resultados são criados como novas máquinas na biblioteca; a máquina original permanece intacta.</p></div></div>
+              <div class="formal-action-grid">
+                <article class="formal-action-card"><div class="formal-action-index">01</div><h4>Determinização</h4><p>Aplica a construção dos subconjuntos, incluindo fecho-ε quando houver transições epsilon. O DFA resultante é completo.</p><button type="button" class="button button-secondary" id="formalDeterminizeButton">Construir DFA</button></article>
+                <article class="formal-action-card"><div class="formal-action-index">02</div><h4>Minimização</h4><p>Remove estados inalcançáveis, completa o DFA com estado poço implícito quando necessário e refina partições de equivalência.</p><button type="button" class="button button-secondary" id="formalMinimizeButton">Minimizar DFA</button></article>
+              </div>
+              <p class="formal-footnote">A minimização direta exige um DFA. Para um AFN ou ε-AFN, execute primeiro a determinização. O estado poço pode aparecer na máquina mínima quando for necessário totalizar a função de transição.</p>
+              <div class="formal-result-note" id="formalTransformResult" aria-live="polite"></div>
+            </section>
+
+            <section class="formal-panel" role="tabpanel" data-formal-panel="equivalence" hidden>
+              <div class="formal-panel-heading"><div><h3>Equivalência de linguagens</h3><p>Compare a máquina atual com outra da biblioteca. O produto dos DFA determinizados é explorado em largura para encontrar uma testemunha mínima.</p></div></div>
+              <div class="formal-compare-controls"><label for="formalCompareMachine">Comparar com</label><select id="formalCompareMachine"><option value="">Selecione outra máquina…</option></select><button type="button" class="button button-secondary" id="formalCompareButton">Verificar equivalência</button></div>
+              <div id="formalEquivalenceResult" class="formal-result-note" aria-live="polite">Selecione uma segunda máquina para iniciar a comparação.</div>
+            </section>
+
+            <section class="formal-panel" role="tabpanel" data-formal-panel="regex" hidden>
+              <div class="formal-panel-heading"><div><h3>Conversão para expressão regular</h3><p>Eliminação de estados por GNFA. Aceita transições não determinísticas e epsilon; expressões podem crescer rapidamente.</p></div><button type="button" class="button button-secondary" id="formalRegexButton">Gerar expressão</button></div>
+              <textarea id="formalRegexOutput" class="formal-regex-output" rows="3" readonly spellcheck="false" placeholder="A expressão regular equivalente aparecerá aqui."></textarea>
+              <div class="formal-regex-footer"><span id="formalRegexNote">ε representa a palavra vazia; ∅ representa a linguagem vazia.</span><button type="button" class="text-button" id="formalCopyRegexButton" disabled>Copiar expressão</button></div>
+            </section>
+          </div>
+        </details>
+
         <section class="section-card editor-workspace" aria-label="Editores da máquina">
           <div class="editor-workspace-header">
             <div class="editor-tabs" role="tablist" aria-label="Arquivos da máquina">
@@ -123,7 +175,7 @@
             <div class="diagnostics" id="ruleDiagnostics" aria-live="polite"><span class="diagnostic-ok">✓ Sintaxe válida</span></div>
           </section>
         </section>
-        <footer class="page-footer"><span>Automata Playground <span class="footer-version">v1.3</span></span><span>Feito para experimentar. Sem backend, sem limites artificiais.</span></footer>
+        <footer class="page-footer"><span>Automata Playground <span class="footer-version">v1.4</span></span><span>Feito para experimentar. Sem backend, sem limites artificiais.</span></footer>
       </div>
     </main>
   </div>
@@ -151,6 +203,8 @@ return next;</pre>
       <div class="help-step"><span>3</span><div><strong>Informe a entrada</strong><p>Para alfabetos de símbolos de um caractere, digite a sequência diretamente. Para símbolos compostos, use um array JSON, como <code>["push", "pop"]</code>. Todo símbolo precisa pertencer a <code>alphabet</code>.</p></div></div>
       <div class="help-step"><span>4</span><div><strong>Execute e observe</strong><p>Use <em>Próximo passo</em> para avançar ou <em>Executar tudo</em> para reiniciar e processar a entrada inteira. O estado <code>null</code> encerra a máquina imediatamente.</p></div></div>
       <div class="help-callout"><strong>Sobre estados e o diagrama</strong><p>Os estados podem ser strings, números ou objetos com uma propriedade <code>id</code>. As transições presentes em <code>machine.transitions</code> são desenhadas automaticamente. Para regras mais complexas, o diagrama também aprende as conexões observadas durante a simulação. Se houver <code>acceptingStates</code>, o simulador informa se o estado final é de aceitação.</p></div>
+      <div class="help-callout"><strong>Autômatos não determinísticos</strong><p>Na tabela convencional, um destino pode ser uma lista de estados. Por exemplo, <code>q0: { a: [q0, q1] }</code> representa duas escolhas para o mesmo símbolo. Transições epsilon podem ser escritas com a chave <code>ε</code> (fora do alfabeto) ou configuradas por <code>epsilonSymbol</code>. Use o Laboratório formal para obter o DFA equivalente pela construção dos subconjuntos.</p></div>
+      <div class="help-callout"><strong>Laboratório formal</strong><p>Abra o painel recolhível abaixo do simulador para analisar determinismo, completude, alcançabilidade, estados mortos e componentes fortemente conexas; gerar tabelas; determinizar e minimizar; comparar linguagens; ou converter uma máquina para expressão regular. Essas análises utilizam a estrutura convencional de <code>transitions</code>, não tentam deduzir o comportamento de código JavaScript arbitrário.</p></div>
       <div class="help-callout"><strong>Compartilhamento</strong><p>O link compartilhável leva uma cópia compactada dos dados no fragmento da URL. A pessoa pode abrir, conferir e salvar a máquina na própria biblioteca. Também é possível importar arquivos YAML de máquina ou exportar um projeto completo em JSON.</p></div>
       <div class="help-warning"><span>ⓘ</span><p>Regras são código JavaScript. Elas rodam em um Web Worker separado, sem acesso ao DOM ou ao <code>localStorage</code> da aplicação, e com limite de tempo por execução. Só execute máquinas de fontes em que confia.</p></div>
     </div>
@@ -195,6 +249,7 @@ return next;</pre>
   <script src="vendor/codemirror/addon/fold/foldgutter.js"></script>
   <script src="vendor/acorn/acorn.js"></script>
   <script src="machine-format.js"></script>
+  <script src="formal-tools.js"></script>
   <script src="vendor/codemirror/mode/yaml/yaml.js"></script>
   <script src="app.js"></script>
 </body>

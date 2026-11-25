@@ -47,7 +47,12 @@ return nextState;`;
     fileInput: $('fileInput'), toastRegion: $('toastRegion'),
     machineDiagnostics: $('machineDiagnostics'), ruleDiagnostics: $('ruleDiagnostics'),
     activeEditorStatus: $('activeEditorStatus'), machineTabStatus: $('machineTabStatus'), ruleTabStatus: $('ruleTabStatus'),
-    historyCount: $('historyCount')
+    historyCount: $('historyCount'),
+    formalLab: $('formalLab'), formalAnalyzeButton: $('formalAnalyzeButton'),
+    formalAnalysisResults: $('formalAnalysisResults'), formalTransitionTable: $('formalTransitionTable'), formalTableMeta: $('formalTableMeta'),
+    formalDeterminizeButton: $('formalDeterminizeButton'), formalMinimizeButton: $('formalMinimizeButton'), formalTransformResult: $('formalTransformResult'),
+    formalCompareMachine: $('formalCompareMachine'), formalCompareButton: $('formalCompareButton'), formalEquivalenceResult: $('formalEquivalenceResult'),
+    formalRegexButton: $('formalRegexButton'), formalRegexOutput: $('formalRegexOutput'), formalRegexNote: $('formalRegexNote'), formalCopyRegexButton: $('formalCopyRegexButton')
   };
 
   let machines = [];
@@ -64,6 +69,7 @@ return nextState;`;
   let editorInstances = {};
   let machineIsValid = true;
   let ruleIsValid = true;
+  let activeFormalTab = 'analysis';
 
   function createCodeEditor(textarea, mode) {
     const cm = CodeMirror.fromTextArea(textarea, {
@@ -115,7 +121,7 @@ return nextState;`;
   }
 
   function setupCodeEditors() {
-    if (!window.CodeMirror || !window.acorn || !window.AutomataFormat) {
+    if (!window.CodeMirror || !window.acorn || !window.AutomataFormat || !window.AutomataFormal) {
       toast('Não foi possível carregar o editor local. Verifique os arquivos da pasta vendor.', true);
       return;
     }
@@ -203,12 +209,16 @@ return nextState;`;
           return;
         }
         Object.entries(bySymbol).forEach(([symbol, target]) => {
-          if (Array.isArray(machine.alphabet) && !machine.alphabet.some((item) => String(item) === symbol)) {
+          const epsilonTransition = (symbol === (machine.epsilonSymbol || 'ε') || (!machine.epsilonSymbol && symbol === 'epsilon')) && !machine.alphabet?.some((item) => String(item) === symbol);
+          if (Array.isArray(machine.alphabet) && !epsilonTransition && !machine.alphabet.some((item) => String(item) === symbol)) {
             diagnostics.push({ kind: 'warning', message: `O símbolo "${symbol}" usado em ${from} não aparece no alfabeto.` });
           }
-          if (target !== null && !knownStates.has(stateKey(target))) {
-            diagnostics.push({ kind: 'warning', message: `A transição ${from} / ${symbol} aponta para "${String(target)}", que não está em states.` });
-          }
+          const destinations = Array.isArray(target) ? target : [target];
+          destinations.forEach((destination) => {
+            if (destination !== null && !knownStates.has(stateKey(destination))) {
+              diagnostics.push({ kind: 'warning', message: `A transição ${from} / ${symbol} aponta para "${String(destination)}", que não está em states.` });
+            }
+          });
         });
       });
     }
@@ -335,6 +345,14 @@ return nextState;`;
 
   function clone(value) {
     return JSON.parse(JSON.stringify(value));
+  }
+
+  function createInitialMachineSnapshot(machine) {
+    const snapshot = clone(machine);
+    if (Object.prototype.hasOwnProperty.call(snapshot, 'initialState')) {
+      snapshot.state = clone(snapshot.initialState);
+    }
+    return snapshot;
   }
 
   function makeMachine(name = 'Minha primeira máquina') {
@@ -569,6 +587,7 @@ return nextState;`;
       drawGraph(null);
       setInputStatus('Corrija a definição YAML antes de executar.', false);
       updateExecutionView();
+      refreshFormalToolUI();
       return;
     }
     if (els.machineStatus) { els.machineStatus.textContent = 'YAML válido'; els.machineStatus.style.color = 'var(--accent)'; }
@@ -579,12 +598,19 @@ return nextState;`;
     drawGraph(result.value);
     validateInputOnly();
     updateExecutionView();
+    refreshFormalToolUI();
   }
 
   function inferMachineType(machine) {
     if (Array.isArray(machine.tape) || Object.prototype.hasOwnProperty.call(machine, 'head')) return 'Máquina de fita';
     if (Array.isArray(machine.stack) || Object.prototype.hasOwnProperty.call(machine, 'stack')) return 'Máquina com pilha';
-    if (machine.transitions && typeof machine.transitions === 'object') return 'Máquina de estados';
+    if (machine.transitions && typeof machine.transitions === 'object') {
+      const values = Object.values(machine.transitions).flatMap((row) => row && typeof row === 'object' ? Object.values(row) : []);
+      const epsilonKey = machine.epsilonSymbol || 'ε';
+      const hasEpsilon = Object.keys(machine.transitions).some((state) => machine.transitions[state] && (Object.prototype.hasOwnProperty.call(machine.transitions[state], epsilonKey) || (!machine.epsilonSymbol && Object.prototype.hasOwnProperty.call(machine.transitions[state], 'epsilon'))));
+      if (hasEpsilon || values.some((value) => Array.isArray(value) && value.length > 1)) return hasEpsilon ? 'ε-AFN' : 'AFN';
+      return 'Autômato finito';
+    }
     return 'Máquina personalizada';
   }
 
@@ -678,7 +704,7 @@ return nextState;`;
 
   function resetExecution(showToast = true) {
     execution = createEmptyExecution();
-    if (parsedMachine) execution.snapshots = [clone(parsedMachine)];
+    if (parsedMachine) execution.snapshots = [createInitialMachineSnapshot(parsedMachine)];
     updateExecutionView();
     if (showToast) toast('Execução reiniciada.');
     if (parsedMachine) drawGraph(parsedMachine);
@@ -722,7 +748,10 @@ return nextState;`;
       Object.entries(machine.transitions).forEach(([from, map]) => {
         if (!map || typeof map !== 'object') return;
         const state = states.find((item) => String(stateId(item)) === from) ?? from;
-        Object.entries(map).forEach(([operation, to]) => addEdge(state, to, operation));
+        Object.entries(map).forEach(([operation, to]) => {
+          if (Array.isArray(to)) to.forEach((target) => addEdge(state, target, operation));
+          else addEdge(state, to, operation);
+        });
       });
     }
     execution.transitions.forEach((item) => addEdge(item.from, item.to, item.operation, true));
@@ -773,10 +802,11 @@ return nextState;`;
       const p = coords.get(key);
       const isInitial = key === initialKey;
       const isCurrent = key === activeKey;
+      const isAccepting = Array.isArray(machine.acceptingStates) && machine.acceptingStates.some((item) => stateKey(item) === key);
       const label = stateLabel(state);
       const shortLabel = label.length > 14 ? `${label.slice(0, 12)}…` : label;
       const sub = isInitial ? 'INICIAL' : '';
-      nodeMarkup += `<g class="state-node ${isInitial ? 'initial' : ''} ${isCurrent ? 'current' : ''}" data-state-key="${escapeXml(key)}" transform="translate(${p.x} ${p.y})" tabindex="0" role="img" aria-label="Estado ${escapeXml(label)}">${isCurrent ? '<circle class="node-halo" r="34"/>' : ''}<circle class="node-circle" r="26"/><text class="node-label" y="1">${escapeXml(shortLabel)}</text>${sub ? '<text class="node-initial-tag" y="42">INICIAL</text>' : ''}</g>`;
+      nodeMarkup += `<g class="state-node ${isInitial ? 'initial' : ''} ${isCurrent ? 'current' : ''} ${isAccepting ? 'accepting' : ''}" data-state-key="${escapeXml(key)}" transform="translate(${p.x} ${p.y})" tabindex="0" role="img" aria-label="Estado ${escapeXml(label)}${isAccepting ? ', de aceitação' : ''}">${isCurrent ? '<circle class="node-halo" r="34"/>' : ''}<circle class="node-circle" r="26"/>${isAccepting ? '<circle class="node-accepting-ring" r="20"/>' : ''}<text class="node-label" y="1">${escapeXml(shortLabel)}</text>${sub ? '<text class="node-initial-tag" y="42">INICIAL</text>' : ''}</g>`;
     });
     if (hasStop) nodeMarkup += `<g transform="translate(${stop.x} ${stop.y})"><rect class="stop-node" x="-30" y="-16" width="60" height="32" rx="7"/><text class="stop-label">null / fim</text></g>`;
     const initPoint = coords.get(stateKey(initialState));
@@ -910,6 +940,202 @@ return nextState;`;
     els.runAllButton.style.opacity = els.runAllButton.disabled ? '.5' : '1';
   }
 
+  function formalMetric(label, value, detail, state = '') {
+    return `<article class="formal-metric ${state}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong><small>${escapeHtml(detail)}</small></article>`;
+  }
+
+  function renderFormalAnalysis() {
+    if (!els.formalAnalysisResults) return;
+    if (!parsedMachine) {
+      els.formalAnalysisResults.innerHTML = '<div class="formal-empty formal-error">Corrija a definição da máquina para executar a análise formal.</div>';
+      return;
+    }
+    try {
+      const report = AutomataFormal.analyze(parsedMachine);
+      const model = report.model;
+      const type = report.epsilonCount ? 'ε-AFN' : report.deterministic ? 'AFD' : 'AFN';
+      const metrics = [
+        formalMetric('Classe estrutural', type, report.epsilonCount ? `${report.epsilonCount} transições epsilon` : report.deterministic ? 'Uma transição por símbolo e estado' : `${report.nondeterministicCells} células não determinísticas`, report.deterministic ? 'good' : 'notice'),
+        formalMetric('Completude', report.complete ? 'Completo' : 'Incompleto', report.complete ? 'Toda célula δ(q, a) está definida' : `${report.missingCells} transições ausentes`, report.complete ? 'good' : 'notice'),
+        formalMetric('Alcançabilidade', `${report.reachable.size}/${model.states.length}`, `${report.inaccessible.length} inacessíveis`, report.inaccessible.length ? 'notice' : 'good'),
+        formalMetric('Co-alcançabilidade', `${report.coaccessible.size}/${model.states.length}`, `${report.dead.length} estados mortos`, report.dead.length ? 'notice' : 'good'),
+        formalMetric('Linguagem', report.languageEmpty ? 'Vazia' : report.languageInfinite ? 'Infinita' : 'Finita', report.languageEmpty ? 'Nenhuma palavra é aceita' : report.languageInfinite ? 'Há um ciclo consumidor em caminho aceitante' : 'Contém uma quantidade finita de palavras', report.languageEmpty ? 'notice' : 'good'),
+        formalMetric('Componentes fortes', String(report.components.length), 'Componentes fortemente conexas', ''),
+        formalMetric('Preenchimento da tabela', `${(report.density * 100).toFixed(1)}%`, `${report.definedCells}/${report.totalCells} células definidas · ${report.transitionCount} destinos`, '')
+      ];
+      const stateList = (keys) => keys.length ? keys.map((key) => `<code>${escapeHtml(AutomataFormal.stateLabel(model.stateByKey.get(key)))}</code>`).join(' ') : '<span class="formal-subtle">Nenhum</span>';
+      const componentList = report.components.map((component, index) => `<div class="formal-component"><span>C${index + 1}</span>${stateList(component)}</div>`).join('');
+      const minimized = report.minimizedStateCount === null ? 'Não aplicável a AFN/ε-AFN' : `${report.minimizedStateCount} estados após completar implicitamente e minimizar${report.minimal ? ' — já minimal' : ''}`;
+      const properties = [
+        ['Determinístico', report.deterministic ? 'Sim' : 'Não'],
+        ['Completo', report.complete ? 'Sim' : 'Não'],
+        ['Estado inicial', AutomataFormal.stateLabel(model.stateByKey.get(model.start))],
+        ['Aceita ε', report.acceptsEmpty ? 'Sim' : 'Não'],
+        ['Linguagem vazia', report.languageEmpty ? 'Sim' : 'Não'],
+        ['Linguagem infinita', report.languageInfinite ? 'Sim' : 'Não'],
+        ['Minimalidade', minimized]
+      ];
+      els.formalAnalysisResults.innerHTML = `<div class="formal-metrics">${metrics.join('')}</div>
+        <div class="formal-analysis-columns">
+          <div class="formal-fact-panel"><h4>Propriedades formais</h4><dl>${properties.map(([name, value]) => `<div><dt>${escapeHtml(name)}</dt><dd>${escapeHtml(value)}</dd></div>`).join('')}</dl>
+            <p class="formal-footnote">O preenchimento considera células Q × Σ com ao menos um destino; em AFN, uma célula pode conter vários destinos. Estados mortos são aqueles dos quais nenhum estado final é alcançável. A finitude da linguagem considera ciclos que consomem ao menos um símbolo em componentes acessíveis e co-acessíveis; ciclos formados apenas por ε não tornam a linguagem infinita.</p></div>
+          <div class="formal-fact-panel"><h4>Estados inacessíveis</h4><div class="formal-state-list">${stateList(report.inaccessible)}</div><h4 class="formal-second-heading">Estados mortos</h4><div class="formal-state-list">${stateList(report.dead)}</div></div>
+        </div>
+        <div class="formal-fact-panel formal-scc-panel"><h4>Componentes fortemente conexas</h4>${componentList || '<span class="formal-subtle">Nenhuma componente.</span>'}</div>`;
+    } catch (error) {
+      els.formalAnalysisResults.innerHTML = `<div class="formal-empty formal-error">${escapeHtml(error.message)}</div>`;
+    }
+  }
+
+  function renderFormalTransitionTable() {
+    if (!els.formalTransitionTable) return;
+    if (!parsedMachine) {
+      els.formalTransitionTable.innerHTML = '<div class="formal-empty formal-error">Definição inválida.</div>';
+      return;
+    }
+    try {
+      const table = AutomataFormal.transitionTable(parsedMachine);
+      els.formalTableMeta.textContent = `${table.rows.length} estados · ${table.columns.length} colunas`;
+      const header = `<thead><tr><th>Estado</th>${table.columns.map((column) => `<th>${escapeHtml(column.label)}</th>`).join('')}</tr></thead>`;
+      const body = table.rows.map((row) => `<tr><th scope="row"><span class="formal-state-marker">${row.initial ? '→' : ''}${row.accepting ? '*' : ''}</span>${escapeHtml(AutomataFormal.stateLabel(row.state))}</th>${row.cells.map((cell) => `<td>${cell.length ? cell.map((label) => `<code>${escapeHtml(label)}</code>`).join('<span class="formal-set-separator">, </span>') : '<span class="formal-no-transition">—</span>'}</td>`).join('')}</tr>`).join('');
+      els.formalTransitionTable.innerHTML = `<table class="formal-transition-table">${header}<tbody>${body}</tbody></table>`;
+    } catch (error) {
+      els.formalTransitionTable.innerHTML = `<div class="formal-empty formal-error">${escapeHtml(error.message)}</div>`;
+    }
+  }
+
+  function refreshFormalCompareOptions() {
+    if (!els.formalCompareMachine) return;
+    const previous = els.formalCompareMachine.value;
+    const options = machines.filter((item) => item.id !== current?.id);
+    els.formalCompareMachine.innerHTML = '<option value="">Selecione outra máquina…</option>';
+    options.forEach((item) => {
+      const parsed = safeParseMachine(item.machineJson);
+      if (!parsed.ok || !parsed.value.transitions) return;
+      const option = document.createElement('option');
+      option.value = item.id;
+      option.textContent = `${item.name || 'Máquina sem nome'} · ${parsed.value.states.length} estados`;
+      els.formalCompareMachine.appendChild(option);
+    });
+    if (options.some((item) => item.id === previous)) els.formalCompareMachine.value = previous;
+  }
+
+  function renderFormalToolUI() {
+    if (!els.formalLab?.open) return;
+    if (activeFormalTab === 'analysis') renderFormalAnalysis();
+    if (activeFormalTab === 'table') renderFormalTransitionTable();
+    if (activeFormalTab === 'equivalence') refreshFormalCompareOptions();
+  }
+
+  function refreshFormalToolUI() {
+    if (!els.formalLab?.open) return;
+    renderFormalToolUI();
+  }
+
+  function activateFormalTab(tab) {
+    activeFormalTab = ['analysis', 'table', 'transform', 'equivalence', 'regex'].includes(tab) ? tab : 'analysis';
+    document.querySelectorAll('[data-formal-tab]').forEach((button) => {
+      const active = button.dataset.formalTab === activeFormalTab;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-selected', String(active));
+      button.tabIndex = active ? 0 : -1;
+    });
+    document.querySelectorAll('[data-formal-panel]').forEach((panel) => {
+      const active = panel.dataset.formalPanel === activeFormalTab;
+      panel.hidden = !active;
+      panel.classList.toggle('active', active);
+    });
+    renderFormalToolUI();
+  }
+
+  function createFormalDerivedMachine(suffix, definition, details = '') {
+    if (!current) return;
+    flushCurrentSave();
+    const item = {
+      id: uid(),
+      name: `${current.name || 'Máquina'} — ${suffix}`.slice(0, 80),
+      machineJson: AutomataFormat.stringifyMachineYaml(definition),
+      rule: DEFAULT_RULE,
+      input: current.input || '',
+      updatedAt: Date.now()
+    };
+    machines.unshift(item);
+    current = clone(item);
+    currentEphemeral = false;
+    persistLibrary();
+    loadCurrentIntoUI();
+    renderMachineList();
+    activateEditorTab('machine');
+    if (els.formalTransformResult) els.formalTransformResult.textContent = details || 'A máquina derivada foi criada na biblioteca.';
+    toast(`Nova máquina criada: ${item.name}`);
+  }
+
+  function formalDeterminizeCurrent() {
+    if (!parsedMachine) { toast('Corrija a definição da máquina primeiro.', true); return; }
+    try {
+      const result = AutomataFormal.determinize(parsedMachine);
+      result.name = 'DFA determinizado';
+      createFormalDerivedMachine('DFA determinizado', result, `Construção dos subconjuntos concluída: ${parsedMachine.states.length} estados de origem → ${result.states.length} estados determinísticos. Estados do DFA representam os subconjuntos exibidos em subsetLabels.`);
+    } catch (error) { toast(`Não foi possível determinizar: ${error.message}`, true); }
+  }
+
+  function formalMinimizeCurrent() {
+    if (!parsedMachine) { toast('Corrija a definição da máquina primeiro.', true); return; }
+    try {
+      const result = AutomataFormal.minimize(parsedMachine);
+      const sourceCount = parsedMachine.states.length;
+      const note = `Minimização concluída: ${sourceCount} estados declarados → ${result.states.length} classes de equivalência. ${result.completedWithSink ? 'Foi necessário completar a função de transição com um estado poço.' : 'A máquina já era completa.'}`;
+      createFormalDerivedMachine('DFA mínimo', result, note);
+    } catch (error) { toast(`Não foi possível minimizar: ${error.message}`, true); }
+  }
+
+  function formalCompareCurrent() {
+    const otherId = els.formalCompareMachine.value;
+    if (!otherId) { els.formalEquivalenceResult.textContent = 'Selecione uma segunda máquina da biblioteca.'; return; }
+    const other = machines.find((item) => item.id === otherId);
+    if (!other) { els.formalEquivalenceResult.textContent = 'A máquina selecionada não está mais na biblioteca.'; return; }
+    const parsedOther = safeParseMachine(other.machineJson);
+    if (!parsedMachine || !parsedOther.ok) { els.formalEquivalenceResult.textContent = 'Uma das definições está inválida.'; return; }
+    try {
+      const result = AutomataFormal.compare(parsedMachine, parsedOther.value);
+      if (result.equivalent) {
+        els.formalEquivalenceResult.innerHTML = `<div class="formal-verdict equivalent"><strong>Equivalentes</strong><span>As máquinas reconhecem a mesma linguagem. Foram explorados ${result.exploredPairs} pares de estados alcançáveis no produto dos DFA.</span></div>`;
+      } else {
+        const witness = result.witness.length ? JSON.stringify(result.witness) : 'ε (palavra vazia)';
+        els.formalEquivalenceResult.innerHTML = `<div class="formal-verdict different"><strong>Não equivalentes</strong><span>Menor palavra testemunha encontrada por busca em largura: <code>${escapeHtml(witness)}</code>.</span><span>Máquina atual: <b>${result.acceptsA ? 'aceita' : 'rejeita'}</b> · ${escapeHtml(other.name)}: <b>${result.acceptsB ? 'aceita' : 'rejeita'}</b>.</span><span>Foram explorados ${result.exploredPairs} pares de estados.</span></div>`;
+      }
+    } catch (error) {
+      els.formalEquivalenceResult.innerHTML = `<div class="formal-empty formal-error">${escapeHtml(error.message)}</div>`;
+    }
+  }
+
+  function formalGenerateRegex() {
+    if (!parsedMachine) { toast('Corrija a definição da máquina primeiro.', true); return; }
+    try {
+      const result = AutomataFormal.toRegularExpression(parsedMachine);
+      els.formalRegexOutput.value = result.expression;
+      els.formalRegexNote.textContent = result.notation;
+      els.formalCopyRegexButton.disabled = false;
+    } catch (error) {
+      els.formalRegexOutput.value = '';
+      els.formalRegexNote.textContent = error.message;
+      els.formalCopyRegexButton.disabled = true;
+    }
+  }
+
+  async function formalCopyRegex() {
+    const value = els.formalRegexOutput.value;
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      toast('Expressão regular copiada.');
+    } catch (_) {
+      els.formalRegexOutput.focus();
+      els.formalRegexOutput.select();
+      toast('Selecione e copie a expressão regular.');
+    }
+  }
+
   function createWorkerSource() {
     return `
       const clone = (value) => JSON.parse(JSON.stringify(value));
@@ -998,7 +1224,7 @@ return nextState;`;
     let operations;
     try { operations = getValidatedOperations(); }
     catch (error) { setInputStatus(error.message, false); toast(error.message, true); return; }
-    if (!execution.snapshots.length) execution.snapshots = [clone(parsedMachine)];
+    if (!execution.snapshots.length) execution.snapshots = [createInitialMachineSnapshot(parsedMachine)];
     if (!execution.operations.length) execution.operations = operations;
     if (execution.cursor >= operations.length) { toast('A entrada já foi totalmente processada.'); return; }
     const currentSnapshot = execution.snapshots[Math.min(execution.cursor, execution.snapshots.length - 1)];
@@ -1034,7 +1260,7 @@ return nextState;`;
     catch (error) { setInputStatus(error.message, false); toast(error.message, true); return; }
     resetExecution(false);
     execution.operations = operations;
-    execution.snapshots = [clone(parsedMachine)];
+    execution.snapshots = [createInitialMachineSnapshot(parsedMachine)];
     execution.hasRun = true;
     execution.startedAt = Date.now();
     if (!operations.length) {
@@ -1048,7 +1274,8 @@ return nextState;`;
     els.executionStatus.innerHTML = '<i></i> Executando';
     const started = performance.now();
     try {
-      const result = await runInWorker(parsedMachine, els.ruleEditor.value, operations, 0, operations, [clone(parsedMachine)]);
+      const initialSnapshot = createInitialMachineSnapshot(parsedMachine);
+      const result = await runInWorker(initialSnapshot, els.ruleEditor.value, operations, 0, operations, [clone(initialSnapshot)]);
       execution.snapshots.push(...(result.snapshots || []));
       execution.transitions.push(...(result.transitions || []));
       execution.cursor = (result.snapshots || []).length;
@@ -1403,6 +1630,16 @@ return nextState;`;
       toast('Máquina aberta sem salvar na biblioteca.');
       cleanShareHash();
     });
+    els.formalLab?.addEventListener('toggle', () => { if (els.formalLab.open) renderFormalToolUI(); });
+    document.querySelectorAll('[data-formal-tab]').forEach((button) => {
+      button.addEventListener('click', () => activateFormalTab(button.dataset.formalTab));
+    });
+    els.formalAnalyzeButton?.addEventListener('click', renderFormalAnalysis);
+    els.formalDeterminizeButton?.addEventListener('click', formalDeterminizeCurrent);
+    els.formalMinimizeButton?.addEventListener('click', formalMinimizeCurrent);
+    els.formalCompareButton?.addEventListener('click', formalCompareCurrent);
+    els.formalRegexButton?.addEventListener('click', formalGenerateRegex);
+    els.formalCopyRegexButton?.addEventListener('click', formalCopyRegex);
     els.runAllButton.addEventListener('click', runAll);
     els.stepButton.addEventListener('click', runOneStep);
     els.resetButton.addEventListener('click', () => resetExecution(true));
